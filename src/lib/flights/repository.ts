@@ -1,0 +1,120 @@
+import "server-only";
+import { randomInt } from "node:crypto";
+import { db } from "@/lib/db";
+import { getTrip } from "@/lib/trips/repository";
+import { AIRLINES, canBookFlights, flightEligibility, searchFlights, type Flight, type Leg, type PlanId } from "./core";
+
+/*
+ * Simulated booking. The server works out the schedule and the pets' eligibility again, so a
+ * booking can't be made for a flight that doesn't exist or that a pet can't take.
+ */
+
+export type FlightResult<T = object> = ({ ok: true } & T) | { ok: false; message: string; upgrade?: boolean };
+
+type TripForFlights = NonNullable<Awaited<ReturnType<typeof getTrip>>>;
+
+export function flightsForTrip(trip: Pick<TripForFlights, "destination" | "arrivalDate" | "returnDate" | "departureAirport" | "arrivalAirport">, leg: Leg): Flight[] {
+  const date = leg === "OUTBOUND" ? trip.arrivalDate : trip.returnDate;
+  if (!date) return [];
+  return searchFlights({ destination: trip.destination, leg, date, ukAirport: trip.departureAirport, destAirport: trip.arrivalAirport });
+}
+
+export function petsForFlights(trip: TripForFlights) {
+  return trip.pets.map(({ pet }) => ({ name: pet.name, species: pet.species, breed: pet.breed, weightKg: pet.weightKg }));
+}
+
+const REF_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function reference() {
+  return Array.from({ length: 6 }, () => REF_CHARS[randomInt(REF_CHARS.length)]).join("");
+}
+
+export async function bookFlight(
+  ownerId: string,
+  input: { tripId: string; leg: string; flightId: string },
+): Promise<FlightResult<{ bookingId: string }>> {
+  const user = await db.user.findUnique({ where: { id: ownerId }, select: { plan: true } });
+  if (!user || !canBookFlights(user.plan)) {
+    return { ok: false, upgrade: true, message: "Booking flights is part of the Complete plan." };
+  }
+  const leg: Leg | null = input.leg === "OUTBOUND" || input.leg === "RETURN" ? input.leg : null;
+  if (!leg) return { ok: false, message: "Choose the journey out or home." };
+  const trip = await getTrip(ownerId, input.tripId);
+  if (!trip) return { ok: false, message: "We couldn't find that trip." };
+  const flight = flightsForTrip(trip, leg).find((f) => f.id === input.flightId);
+  if (!flight) return { ok: false, message: "That flight isn't available any more." };
+  const check = flightEligibility(flight, petsForFlights(trip), trip.petPlacement);
+  if (!check.ok || !check.placement) return { ok: false, message: "Not every pet on this trip can take this flight." };
+  if (await db.booking.findUnique({ where: { tripId_leg: { tripId: trip.id, leg } } })) {
+    return { ok: false, message: `You've already booked the journey ${leg === "OUTBOUND" ? "out" : "home"} for this trip.` };
+  }
+
+  const airline = AIRLINES[flight.airline];
+  const booking = await db.$transaction(async (tx) => {
+    const created = await tx.booking.create({
+      data: {
+        ownerId,
+        tripId: trip.id,
+        leg,
+        airline: flight.airline,
+        flightNumber: flight.flightNumber,
+        fromCode: flight.from,
+        toCode: flight.to,
+        departDate: flight.date,
+        departTime: flight.depart,
+        arriveTime: flight.arrive,
+        durationMin: flight.durationMin,
+        placement: check.placement!,
+        priceGbp: check.price,
+        reference: reference(),
+      },
+      select: { id: true },
+    });
+    if (leg === "OUTBOUND") {
+      /* The airports now come from the booking, which also settles Ireland's point-of-entry step */
+      await tx.trip.update({
+        where: { id: trip.id },
+        data: { departureAirport: flight.from, arrivalAirport: flight.to, petPlacement: check.placement === "CABIN" ? "CABIN" : "HOLD" },
+      });
+    } else if (check.placement === "CARGO") {
+      /* Flying home as cargo with an approved airline completes the approved-route step */
+      for (const { petId } of trip.pets) {
+        await tx.taskRecord.upsert({
+          where: { tripId_petId_key: { tripId: trip.id, petId, key: "approvedRouteBooked" } },
+          create: { tripId: trip.id, petId, key: "approvedRouteBooked", doneOn: new Date().toISOString().slice(0, 10), source: "BOOKING", issuedBy: airline.name },
+          update: { source: "BOOKING", issuedBy: airline.name, documentId: null },
+        });
+      }
+    }
+    return created;
+  });
+  return { ok: true, bookingId: booking.id };
+}
+
+export function listBookings(ownerId: string, tripId?: string) {
+  return db.booking.findMany({
+    where: { ownerId, ...(tripId ? { tripId } : {}) },
+    orderBy: [{ departDate: "asc" }, { departTime: "asc" }],
+  });
+}
+
+export function getBooking(ownerId: string, id: string) {
+  return db.booking.findFirst({
+    where: { id, ownerId },
+    include: {
+      owner: { select: { name: true } },
+      trip: { include: { pets: { include: { pet: { select: { name: true, species: true } } } } } },
+    },
+  });
+}
+
+/** Simulated checkout: no payment details are taken. */
+export async function upgradePlan(userId: string, plan: string): Promise<FlightResult> {
+  if (plan !== "PLAN" && plan !== "COMPLETE") return { ok: false, message: "Choose a plan." };
+  const user = await db.user.findUnique({ where: { id: userId }, select: { plan: true, role: true } });
+  if (!user || user.role !== "OWNER") return { ok: false, message: "Only pet owner accounts have plans." };
+  const order: PlanId[] = ["EXPLORE", "PLAN", "COMPLETE"];
+  if (order.indexOf(plan) <= order.indexOf(user.plan as PlanId)) return { ok: false, message: "You're already on this plan or a higher one." };
+  await db.user.update({ where: { id: userId }, data: { plan, planPaidAt: new Date() } });
+  return { ok: true };
+}

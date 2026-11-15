@@ -1,0 +1,80 @@
+/* PetJet design tokens. Single source of truth for colour, type, radius, shadow and motion. */
+@theme {
+  /* Brand */
+  --color-forest-950: #0f231d;
+  --color-forest-900: #16302a;
+  --color-forest-800: #1f4033;
+  --color-forest-700: #2a5443;
+  --color-forest-600: #3a6b56;
+  --color-sage-500: #7a9a7e;
+  --color-sage-400: #9bb39c;
+  --color-sage-300: #c2d2c0;
+  --color-sage-200: #dce5d9;
+  --color-sage-100: #ebf0e8;
+  --color-sage-50: #f4f7f2;
+  --color-cream-50: #fdfcf8;
+  --color-cream-100: #faf7f0;
+  --color-cream-200: #f3eee2;
+  --color-tan-700: #8a5a2b;
+  --color-tan-600: #a86f38;
+  --color-tan-500: #c98a4b;
+  --color-tan-200: #f0dcc2;
+  --color-tan-100: #f8ecdb;
+
+  /* Neutrals */
+  --color-ink-900: #14201c;
+  --color-ink-700: #33423d;
+  --color-ink-500: #5e6b66;
+  --color-ink-400: #88938e;
+  --color-line: #e5e3da;
+  --color-line-strong: #d3d1c6;
+  --color-surface: #ffffff;
+
+  /* Status */
+  --color-ok-700: #1f6b4a;
+  --color-ok-100: #e2f1e8;
+  --color-warn-700: #8a5a12;
+  --color-warn-100: #fbefd3;
+  --color-danger-700: #a03a2e;
+  --color-danger-100: #fbe6e2;
+  --color-info-700: #2c5a7a;
+  --color-info-100: #e3eef6;
+
+  /* Type */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Radius: two sizes plus pill */
+  --radius-control: 10px;
+  --radius-card: 18px;
+
+  /* Layered soft shadows */
+  --shadow-xs: 0 1px 2px rgb(20 32 28 / 0.05);
+  --shadow-card: 0 1px 2px rgb(20 32 28 / 0.04), 0 4px 16px -4px rgb(20 32 28 / 0.06);
+  --shadow-raised: 0 2px 4px rgb(20 32 28 / 0.04), 0 12px 32px -8px rgb(20 32 28 / 0.12);
+  --shadow-float: 0 4px 8px rgb(20 32 28 / 0.05), 0 24px 56px -12px rgb(20 32 28 / 0.22);
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-rise: rise 0.5s var(--ease-out-soft) both;
+
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

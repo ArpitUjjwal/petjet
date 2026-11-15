@@ -1,0 +1,329 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// SQLite has no enums, so roles and types are strings validated in src/lib/auth/roles.ts
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  /// OWNER | VET | LAB
+  role         String    @default("OWNER")
+  /// EXPLORE | PLAN | COMPLETE. Payments are simulated.
+  plan         String    @default("EXPLORE")
+  planPaidAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  provider     Provider?
+  pets         Pet[]
+  trips        Trip[]
+  documents    Document[]
+  appointments Appointment[]
+  bookings     Booking[]
+}
+
+/// A veterinary practice or pathology lab. Provider accounts are pre-seeded; there is no public sign-up.
+model Provider {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// VET | LAB
+  type               String
+  name               String
+  registrationNumber String
+  verified           Boolean  @default(false)
+  city               String
+  postcode           String
+  /// JSON array of services offered: VetService values for vets, test codes for labs
+  services           String   @default("[]")
+  /// Can sign export and animal health certificates
+  officialVet        Boolean  @default(false)
+  blurb              String?
+  createdAt          DateTime @default(now())
+  appointments       Appointment[]
+  labOrders          LabOrder[]
+}
+
+/// One verified travel rule. The current version of each rule is the row with the highest
+/// version for its code; older versions are kept as the audit trail.
+model Rule {
+  id           String   @id @default(cuid())
+  code         String
+  version      Int
+  /// JSON array of route keys, e.g. ["GB-FR","GB-IE"]
+  routes       String
+  /// JSON array of species
+  species      String
+  title        String
+  summary      String
+  /// JSON array of { name, url }
+  sources      String
+  lastVerified String
+  /// VERIFIED | NEEDS_REVIEW
+  reviewStatus String
+  /// JSON object of structured parameters used by the engine
+  params       String
+  createdAt    DateTime @default(now())
+
+  @@unique([code, version])
+  @@index([code])
+}
+
+/// A pet owned by a pet owner. Dates are stored as "YYYY-MM-DD" strings.
+model Pet {
+  id               String    @id @default(cuid())
+  ownerId          String
+  owner            User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name             String
+  /// DOG | CAT | FERRET
+  species          String
+  breed            String?
+  birthYear        Int
+  birthMonth       Int
+  /// Null when the owner only knows the month and year
+  birthDay         Int?
+  weightKg         Float?
+  /// For restricted dog breeds in France; null when not asked or unknown
+  hasPedigree      Boolean?
+  /// YES | NO | UNKNOWN
+  microchipStatus  String    @default("UNKNOWN")
+  microchipNumber  String?
+  microchipDate    String?
+  /// VACCINATED | NONE | UNKNOWN
+  rabiesStatus     String    @default("UNKNOWN")
+  rabiesLastDose   String?
+  /// PRIMARY | BOOSTER | null when unknown
+  rabiesDoseKind   String?
+  rabiesValidUntil String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  trips            TripPet[]
+  taskRecords      TaskRecord[]
+  documents        Document[]
+  appointments     Appointment[]
+
+  @@index([ownerId])
+}
+
+/// A planned journey for one or more of an owner's pets, always by air.
+model Trip {
+  id               String    @id @default(cuid())
+  ownerId          String
+  owner            User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  origin           String
+  destination      String
+  departureAirport String?
+  arrivalAirport   String?
+  /// Date the pets arrive at the destination
+  arrivalDate      String
+  /// Date the pets arrive back home; null when not decided yet
+  returnDate       String?
+  /// NONE | AIRSIDE
+  transit          String    @default("NONE")
+  /// OWNER | AUTHORISED_PERSON
+  accompaniment    String    @default("OWNER")
+  /// CABIN | HOLD | NO_PREFERENCE
+  petPlacement     String    @default("NO_PREFERENCE")
+  /// YES | SOME | NO
+  recordsAvailable String    @default("NO")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  pets             TripPet[]
+  taskRecords      TaskRecord[]
+  documents        Document[]
+  appointments     Appointment[]
+  bookings         Booking[]
+
+  @@index([ownerId])
+}
+
+model TripPet {
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  petId  String
+  pet    Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@id([tripId, petId])
+  @@index([petId])
+}
+
+/// Evidence that one plan step is done for one pet on one trip. The key is a field of the
+/// engine's TaskRecords (src/lib/rules/types.ts); flags store the date they were confirmed.
+model TaskRecord {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  petId     String
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  key       String
+  /// "YYYY-MM-DD" the step was done
+  doneOn    String
+  /// OWNER | DOCUMENT | VET | BOOKING
+  source     String    @default("OWNER")
+  /// The confirmed document this came from; deleting the document removes the record
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  /// Who recorded it when it wasn't the owner, e.g. the vet practice's name
+  issuedBy   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tripId, petId, key])
+  @@index([petId])
+}
+
+/// A file an owner uploaded to their document vault. Files live in storage/uploads, never in public/.
+model Document {
+  id             String          @id @default(cuid())
+  ownerId        String
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  petId          String
+  pet            Pet             @relation(fields: [petId], references: [id], onDelete: Cascade)
+  /// The trip a certificate, treatment or receipt belongs to
+  tripId         String?
+  trip           Trip?           @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  /// RABIES | MICROCHIP | AHC | TAPEWORM | CDC_RECEIPT | OTHER
+  type           String
+  detectedType   String
+  typeConfidence Float           @default(0)
+  fileName       String
+  /// Path inside the upload directory: "<ownerId>/<random>.<ext>"
+  storedName     String          @unique
+  mimeType       String
+  size           Int
+  sha256         String
+  /// TEXT | NO_TEXT | IMAGE
+  readMode       String
+  /// The text layer, pages separated by form feeds, kept so the type can be changed and re-read
+  text           String          @default("")
+  /// READY | NEEDS_REVIEW | CONFIRMED | STORED
+  status         String
+  /// JSON array of sentences describing what confirming changed
+  applied        String?
+  confirmedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  fields         DocumentField[]
+  taskRecords    TaskRecord[]
+  shares         AppointmentDocument[]
+
+  @@index([ownerId])
+  @@index([petId])
+}
+
+/// One detail read from a document, with how sure the reader was and the line it came from.
+model DocumentField {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  key        String
+  value      String?
+  raw        String?
+  confidence Float    @default(0)
+  evidence   String?
+  page       Int?
+  /// EXTRACTED | EDITED | MANUAL
+  origin     String   @default("EXTRACTED")
+
+  @@unique([documentId, key])
+}
+
+/// An owner's request to see a vet for one plan step. Slots are simulated.
+model Appointment {
+  id           String                @id @default(cuid())
+  ownerId      String
+  owner        User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  petId        String
+  pet          Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tripId       String?
+  trip         Trip?                 @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  providerId   String
+  provider     Provider              @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  /// VetService, e.g. ANIMAL_HEALTH_CERTIFICATE
+  service      String
+  /// The plan step it was booked from, e.g. "ahc"
+  taskId       String?
+  /// "YYYY-MM-DDTHH:mm", UK time
+  slot         String
+  /// REQUESTED | ACCEPTED | COMPLETED | DECLINED
+  status       String                @default("REQUESTED")
+  ownerNote    String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  documents    AppointmentDocument[]
+  labOrders    LabOrder[]
+
+  @@index([ownerId])
+  @@index([providerId])
+}
+
+/// A document the owner chose to share with the vet for one appointment.
+model AppointmentDocument {
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  documentId    String
+  document      Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sharedAt      DateTime    @default(now())
+
+  @@id([appointmentId, documentId])
+  @@index([documentId])
+}
+
+/// A test a vet orders from a lab. Results are simulated samples.
+model LabOrder {
+  id            String      @id @default(cuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  labId         String
+  lab           Provider    @relation(fields: [labId], references: [id], onDelete: Cascade)
+  /// RABIES_TITRE | HEALTH_SCREEN
+  test          String
+  /// ORDERED | RESULTED
+  status        String      @default("ORDERED")
+  /// Titre in IU/mL; null for a health screen
+  resultValue   Float?
+  /// PASS | FAIL
+  outcome       String?
+  resultNote    String?
+  resultedAt    DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([labId])
+}
+
+/// A simulated flight booking for one leg of a trip, covering the owner and every pet on it.
+model Booking {
+  id           String   @id @default(cuid())
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tripId       String
+  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  /// OUTBOUND | RETURN
+  leg          String
+  /// IATA airline code, e.g. AF
+  airline      String
+  flightNumber String
+  fromCode     String
+  toCode       String
+  /// "YYYY-MM-DD"
+  departDate   String
+  /// "HH:mm" local times
+  departTime   String
+  arriveTime   String
+  durationMin  Int
+  /// CABIN | HOLD | CARGO
+  placement    String
+  priceGbp     Int
+  /// Six-character booking reference
+  reference    String   @unique
+  createdAt    DateTime @default(now())
+
+  @@unique([tripId, leg])
+  @@index([ownerId])
+}

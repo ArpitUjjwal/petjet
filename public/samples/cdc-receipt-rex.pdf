@@ -1,0 +1,49 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 739 >>
+stream
+0.15 0.3 0.5 rg 0 792 595 50 re f
+BT /F1 9 Tf 0.1 0.13 0.12 rg 56 760 Td (Centers for Disease Control and Prevention) Tj ET
+BT /F2 20 Tf 0.1 0.13 0.12 rg 56 725 Td (CDC Dog Import Form - Receipt) Tj ET
+BT /F1 11 Tf 0.1 0.13 0.12 rg 56 683 Td (Confirmation number: CDC-DIF-88412907) Tj ET
+BT /F1 11 Tf 0.1 0.13 0.12 rg 56 664 Td (Submission date: 11/10/2026) Tj ET
+BT /F1 11 Tf 0.1 0.13 0.12 rg 56 645 Td (Dog name: Rex) Tj ET
+BT /F1 11 Tf 0.1 0.13 0.12 rg 56 626 Td (Microchip number: 956000012345678) Tj ET
+BT /F1 11 Tf 0.1 0.13 0.12 rg 56 607 Td (This receipt is valid for 6 months from the date of submission.) Tj ET
+BT /F1 8 Tf 0.1 0.13 0.12 rg 56 564 Td (PETJET SAMPLE DOCUMENT - for demonstration only. Not a real certificate.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Producer (PetJet sample generator) /Title (PetJet sample document) >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000354 00000 n 
+0000000456 00000 n 
+0000001246 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R /Info 7 0 R >>
+startxref
+1335
+%%EOF

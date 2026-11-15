@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PetJet
 
-## Getting Started
+Pet travel, simplified. PetJet turns international pet travel rules into a personalised, dated plan, reads your pet's documents, and connects you with vets, labs and pet-friendly flights.
 
-First, run the development server:
+This is a working prototype for a 6-minute presentation. Everything simulated (document reading, vet certificates, lab results, flights, payments, insurance offers) is labelled as a sample in the app. Supported routes: Great Britain to France, Ireland and the USA (and back).
+
+Progress and plans: [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/plan-lean.md`](docs/plan-lean.md).
+
+## Setup
+
+Needs Node.js 20 or later. Everything runs locally: SQLite, no external accounts.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install                     # also generates the Prisma client
+cp .env.example .env            # then set SESSION_SECRET (openssl rand -base64 32)
+npx prisma db push              # creates prisma/dev.db
+npm run db:seed                 # demo accounts, partner vets and the verified rules
+npm run dev                     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+After pulling changes to `prisma/schema.prisma`, run `npx prisma db push` and restart `npm run dev`. The running server keeps the old database client in memory until you restart it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo accounts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Password for all: `PetJet-demo-2026` (the login pages have one-click demo buttons).
 
-## Learn More
+| Role | Email | Logs in at |
+|---|---|---|
+| Pet owner | mariyam@petjet.test | `/login` |
+| Vet (Riverside Veterinary Centre) | vet@petjet.test | `/provider/login` |
+| Lab (Northgate Pathology) | lab@petjet.test | `/provider/login` |
 
-To learn more about Next.js, take a look at the following resources:
+Sample PDFs to upload are on the Documents page and in `public/samples/` (regenerate with `npm run samples`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tests
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm test                 # unit tests (Vitest), uses prisma/unit.db
+npx playwright install   # first time only: browsers for the end-to-end tests
+npx playwright test      # end-to-end, desktop + mobile; builds the app and uses prisma/test.db
+npm run typecheck
+npm run lint
+```
 
-## Deploy on Vercel
+## Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Prisma + SQLite · pdf.js · Framer Motion · Vitest · Playwright.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`AGENTS.md` notes that this Next.js version differs from older docs; read `node_modules/next/dist/docs/` before changing framework-level code.
