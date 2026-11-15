@@ -1,6 +1,8 @@
 import "server-only";
 import { randomInt } from "node:crypto";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notifications/repository";
+import { formatDate } from "@/lib/rules/dates";
 import { getTrip } from "@/lib/trips/repository";
 import { AIRLINES, canBookFlights, flightEligibility, searchFlights, type Flight, type Leg, type PlanId } from "./core";
 
@@ -68,7 +70,15 @@ export async function bookFlight(
         priceGbp: check.price,
         reference: reference(),
       },
-      select: { id: true },
+      select: { id: true, reference: true },
+    });
+    const pets = trip.pets.map((p) => p.pet.name);
+    await notify(tx, {
+      userId: ownerId,
+      kind: "FLIGHT_BOOKED",
+      title: `Booked: ${airline.name} ${flight.flightNumber}, ${flight.from} to ${flight.to}`,
+      body: `${formatDate(flight.date)} at ${flight.depart}. ${pets.join(" and ")} ${pets.length === 1 ? "flies" : "fly"} ${check.placement === "CABIN" ? "in the cabin" : check.placement === "HOLD" ? "in the hold" : "as cargo"}. Reference ${created.reference} (simulated).`,
+      href: `/app/flights/${created.id}`,
     });
     if (leg === "OUTBOUND") {
       /* The airports now come from the booking, which also settles Ireland's point-of-entry step */

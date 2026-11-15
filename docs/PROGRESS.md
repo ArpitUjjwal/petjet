@@ -17,7 +17,7 @@ _Last updated: 15 Nov 2026_
 | Module 6 | Documents: upload, vault, PDF reading with evidence, review and confirm | ✅ Done |
 | Batch A | Vet directory and booking, vet portal, lab portal, record sharing | ✅ Done |
 | Batch B | Flights with pet eligibility, simulated upgrade gating booking, e-ticket, insurance | ✅ Done |
-| Batch C | Notifications, demo switcher, mid-journey demo seed, README, full-journey test | ⬜ Next |
+| Batch C | Notifications, demo switcher, mid-journey demo seed, README, full-journey test | ✅ Done |
 
 The original Modules 7–13 were folded into Batches A–C on 15 Nov 2026 to keep the prototype lean.
 
@@ -27,8 +27,8 @@ The original Modules 7–13 were folded into Batches A–C on 15 Nov 2026 to kee
 
 | Check | Latest result |
 |---|---|
-| Unit tests (Vitest) | 236 passing |
-| Browser tests (Playwright, desktop + mobile) | 138 passing |
+| Unit tests (Vitest) | 248 passing |
+| Browser tests (Playwright, desktop + mobile) | 142 passing |
 | Typecheck and lint | Clean |
 | Production build | Clean, no warnings |
 
@@ -45,13 +45,13 @@ The original Modules 7–13 were folded into Batches A–C on 15 Nov 2026 to kee
 - [x] Insurance page (`/app/insurance`) with illustrative offers from made-up insurers
 - [x] 15 unit tests and a browser test for the whole flight flow; full suite green; screenshots in `docs/screenshots/batch-b/`
 
-## Batch C checklist
+## Batch C checklist ✅
 
-- [ ] Notifications (events plus deadline reminders) behind the bell
-- [ ] One-click demo switcher between owner, vet and lab
-- [ ] `npm run db:demo`: mid-journey demo data, reset before each run-through
-- [ ] README with setup, demo logins and a 6-minute demo script
-- [ ] Full-journey browser test (owner → vet → lab → flight → 100% ready)
+- [x] Notifications behind the bell (`Notification` model, `src/lib/notifications/`): request, accept/decline, certificate, lab order, lab result and booking, each written in the same transaction as its event; deadline reminders (due within 7 days or overdue) worked out on page load; `/app/notifications` and `/provider/notifications` with "Mark all read"
+- [x] One-click demo bar between owner, vet and lab, only for demo accounts and off when `DEMO_MODE=false`
+- [x] `npm run db:demo`: Bella the Cockapoo, GB → France in **8 days** with a return a week later (changed from ~6 weeks so the vet can issue the certificate on demo day), rabies confirmed, microchip certificate to review
+- [x] README with the reset command and a 6-minute demo script
+- [x] Full-journey browser test (`tests/e2e/demo-journey.spec.ts`): owner → vet → lab → notifications → upgrade → flights → "ready to fly" at 6 of 7 (only the return tapeworm dose, which can't be given before the trip); plus a demo-bar test; 12 new unit tests; screenshots in `docs/screenshots/batch-c/`
 
 ## Where things are
 

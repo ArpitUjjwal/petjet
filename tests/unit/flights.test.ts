@@ -152,6 +152,10 @@ describe("booking", () => {
     expect(saved!.reference).toMatch(/^[A-Z2-9]{6}$/);
     expect(await db.trip.findUnique({ where: { id: tripId } })).toMatchObject({ departureAirport: "LHR", arrivalAirport: "DUB" });
     expect(await bookFlight(owner, { tripId, leg: "OUTBOUND", flightId: out.id })).toMatchObject({ ok: false, message: expect.stringMatching(/already booked/) });
+    const booked = await db.notification.findMany({ where: { userId: owner, kind: "FLIGHT_BOOKED" } });
+    expect(booked).toHaveLength(1);
+    expect(booked[0].href).toMatch(/^\/app\/flights\//);
+    expect(booked[0].title).toMatch(new RegExp(`${out.flightNumber}, ${out.from} to ${out.to}$`));
 
     // Dublin is an approved point of entry, so that step is now done
     const plan = planStoredTrip((await getTrip(owner, tripId))!, "2026-11-15").pets[0].plan;

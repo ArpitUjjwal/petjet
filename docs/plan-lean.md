@@ -81,7 +81,7 @@ The original Modules 7–13 become **3 lean batches**. Each batch ends with unit
 
 **Demo seed:** `npm run db:demo` resets the demo owner to mid-journey, with dates relative to today:
 - Bella, a Cockapoo of about 9 kg (so the hold-vs-cabin eligibility story shows).
-- A trip from Great Britain to France in about 6 weeks, with a return.
+- A trip from Great Britain to France in **8 days**, with a return a week later. (Changed from "about 6 weeks" on 15 Nov 2026: the vet can only record a certificate dated today, and France needs it issued within 10 days of arrival. The return tapeworm dose can't be given until 1–5 days before re-entering Great Britain, so the finale is "ready to fly" at 6 of 7 rather than 100%.)
 - A rabies record confirmed, and a microchip certificate waiting for review.
 - The account on the Travel Plan, so the upgrade can be shown.
 - Clean vet and lab queues.
@@ -94,7 +94,7 @@ The original Modules 7–13 become **3 lean batches**. Each batch ends with unit
 3. Switch to the vet: accept, issue the certificate, order a titre test.
 4. Switch to the lab: post the result.
 5. Switch to the owner: sees the result and notifications.
-6. Upgrades, books flights and sees the e-ticket; readiness reaches 100%.
+6. Upgrades, books flights and sees the e-ticket; every step for the trip out is done, with only the return tapeworm dose left.
 
 ## Verification (each batch)
 

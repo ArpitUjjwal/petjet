@@ -11,9 +11,11 @@ import {
   type SamplePet,
 } from "../src/lib/documents/sample-pdf";
 import { SAMPLE_FILES } from "../src/lib/documents/samples";
+import { DEMO_PET } from "../prisma/demo-accounts";
 
 const milo: SamplePet = { name: "Milo", species: "Cat", breed: "British Shorthair", microchip: "956000012345678", dob: "2023-03-04" };
 const rex: SamplePet = { name: "Rex", species: "Dog", breed: "Labrador", microchip: "956000012345678", dob: "2021-04-30" };
+const bella: SamplePet = { name: DEMO_PET.name, species: "Dog", breed: DEMO_PET.breed, microchip: DEMO_PET.microchip, dob: DEMO_PET.dob };
 const max: SamplePet = { name: "Max", species: "Cat", breed: "Maine Coon", microchip: "985112003456789", dob: "2022-07-19" };
 
 const files: Record<(typeof SAMPLE_FILES)[number]["file"], Buffer> = {
@@ -24,6 +26,7 @@ const files: Record<(typeof SAMPLE_FILES)[number]["file"], Buffer> = {
   "cdc-receipt-rex.pdf": cdcReceipt(rex, { submittedOn: "2026-11-10" }),
   "rabies-vaccination-max-mismatch.pdf": rabiesCertificate(max, { vaccinatedOn: "2026-08-20", validUntil: "2027-08-19" }),
   "scanned-record.pdf": scannedRecord(),
+  "microchip-certificate-bella.pdf": microchipCertificate(bella, { implantedOn: DEMO_PET.microchipImplantedOn }),
 };
 
 const dir = path.join(process.cwd(), "public", "samples");

@@ -6,6 +6,7 @@ import type { PlanTask, Rule } from "@/lib/rules/types";
 import { windowLabel } from "@/lib/trips/format";
 import { planStoredTrip, routeTitle } from "@/lib/trips/plan";
 import { getTrip, type TripWithPets } from "@/lib/trips/repository";
+import { notify, providerUserId } from "@/lib/notifications/repository";
 import {
   LAB_TESTS,
   SERVICE_LABEL,
@@ -15,8 +16,11 @@ import {
   parseServices,
   proposeSlots,
   slotDate,
+  slotLabel,
   titreOutcome,
 } from "./core";
+
+const serviceLabel = (s: string) => SERVICE_LABEL[s as keyof typeof SERVICE_LABEL] ?? s;
 
 /*
  * The vet network. Owners only touch their own appointments; providers only the appointments
@@ -102,19 +106,30 @@ export async function requestAppointment(
   });
   if (open) return { ok: false, message: "You already have an appointment for this. Check Your appointments." };
 
-  const appt = await db.appointment.create({
-    data: {
-      ownerId,
-      petId: pet.id,
-      tripId: input.tripId ?? null,
-      providerId: provider.id,
-      service: input.service,
-      taskId: input.taskId ?? null,
-      slot: input.slot,
-      ownerNote: input.ownerNote?.trim().slice(0, 500) || null,
-      documents: { create: documentIds.map((documentId) => ({ documentId })) },
-    },
-    select: { id: true },
+  const owner = await db.user.findUnique({ where: { id: ownerId }, select: { name: true } });
+  const appt = await db.$transaction(async (tx) => {
+    const created = await tx.appointment.create({
+      data: {
+        ownerId,
+        petId: pet.id,
+        tripId: input.tripId ?? null,
+        providerId: provider.id,
+        service: input.service,
+        taskId: input.taskId ?? null,
+        slot: input.slot,
+        ownerNote: input.ownerNote?.trim().slice(0, 500) || null,
+        documents: { create: documentIds.map((documentId) => ({ documentId })) },
+      },
+      select: { id: true },
+    });
+    await notify(tx, {
+      userId: provider.userId,
+      kind: "APPOINTMENT_REQUESTED",
+      title: `New request: ${serviceLabel(input.service)} for ${pet.name}`,
+      body: `${owner?.name ?? "A pet owner"} asked for ${slotLabel(input.slot)}${documentIds.length ? ` and shared ${documentIds.length} document${documentIds.length === 1 ? "" : "s"}` : ""}.`,
+      href: `/provider/appointments/${created.id}`,
+    });
+    return created;
   });
   return { ok: true, appointmentId: appt.id };
 }
@@ -176,8 +191,27 @@ export async function getProviderAppointment(providerId: string, id: string) {
 export type ProviderAppointment = NonNullable<Awaited<ReturnType<typeof getProviderAppointment>>>;
 
 export async function respondToAppointment(providerId: string, id: string, decision: "ACCEPTED" | "DECLINED"): Promise<VetResult> {
-  const res = await db.appointment.updateMany({ where: { id, providerId, status: "REQUESTED" }, data: { status: decision } });
-  return res.count ? { ok: true } : { ok: false, message: "This request has already been answered." };
+  return db.$transaction(async (tx) => {
+    const res = await tx.appointment.updateMany({ where: { id, providerId, status: "REQUESTED" }, data: { status: decision } });
+    if (!res.count) return { ok: false, message: "This request has already been answered." };
+    const appt = await tx.appointment.findUniqueOrThrow({
+      where: { id },
+      select: { ownerId: true, service: true, slot: true, pet: { select: { name: true } }, provider: { select: { name: true } } },
+    });
+    const accepted = decision === "ACCEPTED";
+    await notify(tx, {
+      userId: appt.ownerId,
+      kind: accepted ? "APPOINTMENT_ACCEPTED" : "APPOINTMENT_DECLINED",
+      title: accepted
+        ? `${appt.provider.name} confirmed ${appt.pet.name}'s appointment`
+        : `${appt.provider.name} couldn't take ${appt.pet.name}'s appointment`,
+      body: accepted
+        ? `${serviceLabel(appt.service)}, ${slotLabel(appt.slot)}.`
+        : `${serviceLabel(appt.service)}, ${slotLabel(appt.slot)}. Choose another practice or time.`,
+      href: "/app/vets",
+    });
+    return { ok: true } as const;
+  });
 }
 
 /** True only when the owner shared this document for one of this provider's live appointments. */
@@ -276,6 +310,13 @@ export async function recordVetService(
       });
     }
     await tx.appointment.update({ where: { id }, data: { status: "COMPLETED" } });
+    await notify(tx, {
+      userId: appt.ownerId,
+      kind: "VET_RECORDED",
+      title: `${by}: ${serviceLabel(appt.service).toLowerCase()} recorded for ${pet.name}`,
+      body: summary,
+      href: record ? `/app/trips/${record.tripId}` : `/app/pets/${pet.id}`,
+    });
   });
   return { ok: true, summary };
 }
@@ -291,7 +332,32 @@ export async function orderLabTest(providerId: string, appointmentId: string, te
   if (!lab) return { ok: false, message: "No partner lab offers this test." };
   const existing = await db.labOrder.findFirst({ where: { appointmentId, test, status: "ORDERED" } });
   if (existing) return { ok: false, message: "This test is already ordered." };
-  const order = await db.labOrder.create({ data: { appointmentId, labId: lab.id, test }, select: { id: true } });
+  const details = await db.appointment.findUniqueOrThrow({
+    where: { id: appointmentId },
+    select: { ownerId: true, pet: { select: { name: true } }, provider: { select: { name: true } } },
+  });
+  const label = LAB_TESTS[test].label;
+  const order = await db.$transaction(async (tx) => {
+    const created = await tx.labOrder.create({ data: { appointmentId, labId: lab.id, test }, select: { id: true } });
+    await notify(
+      tx,
+      {
+        userId: lab.userId,
+        kind: "LAB_ORDERED",
+        title: `New order: ${label} for ${details.pet.name}`,
+        body: `Ordered by ${details.provider.name}.`,
+        href: `/provider/lab-orders/${created.id}`,
+      },
+      {
+        userId: details.ownerId,
+        kind: "LAB_ORDERED",
+        title: `${details.provider.name} ordered a ${label.toLowerCase()} for ${details.pet.name}`,
+        body: `${lab.name} will post the result here.`,
+        href: "/app/vets",
+      },
+    );
+    return created;
+  });
   return { ok: true, orderId: order.id };
 }
 
@@ -300,6 +366,9 @@ const labInclude = {
     select: {
       id: true,
       slot: true,
+      ownerId: true,
+      tripId: true,
+      providerId: true,
       pet: { select: { name: true, species: true, breed: true, microchipNumber: true } },
       provider: { select: { name: true } },
     },
@@ -338,13 +407,28 @@ export async function postLabResult(
   } else {
     return { ok: false, errors: { outcome: "Choose the outcome." } };
   }
-  await db.labOrder.update({ where: { id }, data: { status: "RESULTED", resultValue, outcome, resultNote: note, resultedAt: new Date() } });
   const t = LAB_TESTS[order.test as keyof typeof LAB_TESTS];
   void today;
-  return {
-    ok: true,
-    summary: `${t.label} for ${order.appointment.pet.name}: ${resultValue !== null ? `${resultValue} ${t.unit}, ` : ""}${outcome === "PASS" ? "pass" : "below the pass mark"}.`,
-  };
+  const summary = `${t.label} for ${order.appointment.pet.name}: ${resultValue !== null ? `${resultValue} ${t.unit}, ` : ""}${outcome === "PASS" ? "pass" : "below the pass mark"}.`;
+  const appt = order.appointment;
+  await db.$transaction(async (tx) => {
+    await tx.labOrder.update({ where: { id }, data: { status: "RESULTED", resultValue, outcome, resultNote: note, resultedAt: new Date() } });
+    const vetUserId = await providerUserId(tx, appt.providerId);
+    await notify(
+      tx,
+      {
+        userId: appt.ownerId,
+        kind: "LAB_RESULT",
+        title: `${t.label} result for ${appt.pet.name}`,
+        body: `${summary} Sample result for the demo.`,
+        href: appt.tripId ? `/app/trips/${appt.tripId}` : "/app/vets",
+      },
+      ...(vetUserId
+        ? [{ userId: vetUserId, kind: "LAB_RESULT" as const, title: `Result in: ${t.label} for ${appt.pet.name}`, body: summary, href: `/provider/appointments/${appt.id}` }]
+        : []),
+    );
+  });
+  return { ok: true, summary };
 }
 
 /** Results and pending tests for an owner's pets, newest first. */

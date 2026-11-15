@@ -35,8 +35,14 @@ export const NAV: Record<ShellRole, NavItem[]> = {
     { href: "/app/flights", label: "Flights", icon: Plane },
     { href: "/app/insurance", label: "Insurance", icon: ShieldCheck },
   ],
-  vet: [{ href: "/provider", label: "Requests", icon: Inbox }],
-  lab: [{ href: "/provider", label: "Test orders", icon: FlaskConical }],
+  vet: [
+    { href: "/provider", label: "Requests", icon: Inbox },
+    { href: "/provider/notifications", label: "Notifications", icon: Bell },
+  ],
+  lab: [
+    { href: "/provider", label: "Test orders", icon: FlaskConical },
+    { href: "/provider/notifications", label: "Notifications", icon: Bell },
+  ],
 };
 
 const roleLabel: Record<ShellRole, string> = {
@@ -118,6 +124,7 @@ export function AppShell({
   userName,
   logoutSlot,
   unread = 0,
+  demoSlot,
   children,
 }: {
   role: ShellRole;
@@ -125,6 +132,8 @@ export function AppShell({
   /** Rendered next to the user card; usually a logout form button */
   logoutSlot?: ReactNode;
   unread?: number;
+  /** The demo switcher bar, for demo accounts only */
+  demoSlot?: ReactNode;
   children: ReactNode;
 }) {
   const pathname = usePathname() ?? "";
@@ -148,6 +157,7 @@ export function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {demoSlot}
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line/70 bg-cream-100/85 px-4 backdrop-blur-md sm:px-6 lg:justify-end">
           <div className="flex items-center gap-2 lg:hidden">

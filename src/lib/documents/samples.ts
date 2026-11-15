@@ -7,4 +7,5 @@ export const SAMPLE_FILES = [
   { file: "cdc-receipt-rex.pdf", title: "CDC Dog Import Form receipt", note: "Rex the dog · US date format" },
   { file: "rabies-vaccination-max-mismatch.pdf", title: "Someone else's record", note: "Max · shows a mismatch" },
   { file: "scanned-record.pdf", title: "Scanned record", note: "No text layer · type it in" },
+  { file: "microchip-certificate-bella.pdf", title: "Microchip certificate", note: "Bella the dog · demo journey" },
 ] as const;

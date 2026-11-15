@@ -225,3 +225,29 @@ describe("owner → vet → lab", () => {
     expect(await canProviderOpenDocument(vet, privateDoc)).toBe(false);
   });
 });
+
+describe("notifications from the owner → vet → lab flow", () => {
+  const userOf = async (providerId: string) => (await db.provider.findUniqueOrThrow({ where: { id: providerId } })).userId;
+  const kinds = async (userId: string) =>
+    (await db.notification.findMany({ where: { userId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] })).map((n) => n.kind);
+
+  it("tells each side what happened, and nobody else", async () => {
+    expect(await kinds(await userOf(vet))).toEqual(["APPOINTMENT_REQUESTED", "LAB_RESULT", "APPOINTMENT_REQUESTED"]);
+    expect(await kinds(await userOf(lab))).toEqual(["LAB_ORDERED"]);
+    expect(await kinds(owner)).toEqual(["APPOINTMENT_ACCEPTED", "VET_RECORDED", "LAB_ORDERED", "LAB_RESULT", "APPOINTMENT_DECLINED"]);
+    expect(await kinds(other)).toEqual([]);
+    expect(await kinds(await userOf(otherVet))).toEqual([]);
+  });
+
+  it("links each one to the page that shows it", async () => {
+    const vetUser = await userOf(vet);
+    const request = await db.notification.findFirstOrThrow({ where: { userId: vetUser, kind: "APPOINTMENT_REQUESTED" } });
+    expect(request).toMatchObject({ title: "New request: Animal health certificate for Bella", href: expect.stringMatching(/^\/provider\/appointments\//) });
+    expect(request.body).toMatch(/shared 1 document\./);
+    const result = await db.notification.findFirstOrThrow({ where: { userId: owner, kind: "LAB_RESULT" } });
+    expect(result).toMatchObject({ href: `/app/trips/${tripId}` });
+    expect(result.body).toMatch(/2\.4 IU\/mL, pass\. Sample result/);
+    const cert = await db.notification.findFirstOrThrow({ where: { userId: owner, kind: "VET_RECORDED" } });
+    expect(cert).toMatchObject({ href: `/app/trips/${tripId}`, body: expect.stringMatching(/^Animal health certificate issued/) });
+  });
+});

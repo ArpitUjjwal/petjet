@@ -7,10 +7,7 @@ export { DEMO_ACCOUNTS, DEMO_PASSWORD };
 /* Pages linked from shared navigation that later modules build.
    Next prefetches them, which 404s until they exist. Remove entries as modules land. */
 const PENDING_ROUTES: string[] = [];
-const PENDING_PREFIXES = [
-  "/app/notifications",
-  "/provider/notifications",
-];
+const PENDING_PREFIXES: string[] = [];
 
 /** Collects uncaught exceptions, console errors and failed requests for a page. */
 export function trackErrors(page: Page) {

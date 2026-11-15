@@ -94,3 +94,14 @@ export const DIRECTORY_VETS = [
     },
   },
 ] as const;
+
+/** The demo owner's dog for `npm run db:demo`. Over 8 kg with a carrier, so she flies in the hold. */
+export const DEMO_PET = {
+  name: "Bella",
+  species: "DOG",
+  breed: "Cockapoo",
+  weightKg: 9.2,
+  dob: "2023-05-14",
+  microchip: "826012345678901",
+  microchipImplantedOn: "2023-08-02",
+} as const;
