@@ -1,111 +1,107 @@
-import { Check, HeartPulse, Info, ShieldCheck } from "lucide-react";
+import { ArrowRight, CalendarDays, Info, PartyPopper } from "lucide-react";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/shell/app-shell";
+import { ChangeInsuranceButton, InsurancePicker, InsurerLogo } from "@/components/insurance/insurance-picker";
 import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/feedback";
 import { requireOwner } from "@/lib/auth/session";
-import { todayISO } from "@/lib/rules/dates";
-import { pickTrip } from "@/lib/trips/dashboard";
-import { SPECIES_NAME } from "@/lib/trips/format";
+import { findOffer, insuranceOffers, samplePolicyNumber } from "@/lib/insurance/offers";
+import { formatDate, todayISO } from "@/lib/rules/dates";
+import { petNames, pickTrip } from "@/lib/trips/dashboard";
 import { countryLabel } from "@/lib/trips/options";
 import { listTrips } from "@/lib/trips/repository";
 
 export const metadata: Metadata = { title: "Insurance" };
 
-/* Illustrative offers from made-up insurers. Nothing here is a real quote or a real company. */
-function offers(destination: string, species: string[]) {
-  const us = destination === "US";
-  const dog = species.includes("DOG");
-  return [
-    {
-      name: "Harbour Pet Cover",
-      plan: "Travel Essentials",
-      price: us ? 38 : 19,
-      tag: "Lowest price",
-      vetCover: us ? "£3,000" : "£2,000",
-      points: ["Emergency vet treatment abroad", "Lost pet advertising and reward", "Quarantine costs if a document is rejected"],
-    },
-    {
-      name: "Meadow Mutual",
-      plan: "Abroad Plus",
-      price: us ? 64 : 34,
-      tag: "Recommended",
-      vetCover: us ? "£8,000" : "£5,000",
-      points: [
-        "Higher vet cover for the cost of treatment" + (us ? " in the USA" : " in Europe"),
-        "Cancellation if your pet is too ill to travel",
-        dog ? "Third-party liability for dogs, up to £2m" : "Boarding fees if you're hospitalised abroad",
-      ],
-    },
-    {
-      name: "Northstar Pet Travel",
-      plan: "Complete Journey",
-      price: us ? 92 : 49,
-      tag: "Most cover",
-      vetCover: us ? "£15,000" : "£10,000",
-      points: ["Everything in Abroad Plus", "Repeat documents and treatments if a trip is delayed", "24/7 vet video calls in English"],
-    },
-  ];
-}
-
-export default async function InsurancePage() {
+export default async function InsurancePage({ searchParams }: PageProps<"/app/insurance">) {
   const user = await requireOwner();
+  const { trip: requested, chosen: justChosen } = await searchParams;
   const trips = await listTrips(user.id);
-  const trip = pickTrip(trips, undefined, todayISO());
-  const species = trip ? [...new Set(trip.pets.map((p) => p.pet.species))] : ["DOG"];
-  const dest = trip?.destination ?? "FR";
-  const list = offers(dest, species);
+  const trip = pickTrip(trips, typeof requested === "string" ? requested : undefined, todayISO());
+
+  if (!trip) {
+    return (
+      <>
+        <PageHeader title="Insurance" />
+        <EmptyState title="No trip yet" description="Plan a trip to compare cover for your pet." action={<ButtonLink href="/plan">Plan a trip</ButtonLink>} />
+      </>
+    );
+  }
+
+  const species = [...new Set(trip.pets.map((p) => p.pet.species))];
+  const names = petNames(trip.pets.map((p) => p.pet));
+  const offers = insuranceOffers(trip.destination, species);
+  const chosen = findOffer(trip.insuranceOffer, trip.destination, species);
+
+  if (chosen) {
+    return (
+      <>
+        <PageHeader title="Insurance" description={`${names} is covered for ${countryLabel(trip.destination)}.`} />
+        <section
+          data-testid="insurance-policy"
+          className="mx-auto flex max-w-xl flex-col gap-5 rounded-card border border-forest-800 bg-surface p-6 shadow-raised"
+        >
+          {justChosen && (
+            <p className="flex items-center gap-2 text-sm font-medium text-ok-700">
+              <PartyPopper className="size-4" /> Cover chosen. One less thing to think about.
+            </p>
+          )}
+          <div className="flex items-start justify-between gap-3">
+            <InsurerLogo offer={chosen} className="h-12" />
+            <Badge tone="sample">Sample, not a real policy</Badge>
+          </div>
+          <div>
+            <p className="text-lg font-semibold">{chosen.plan}</p>
+            <p className="text-sm text-ink-500">For {names}</p>
+          </div>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            <div>
+              <dt className="text-ink-500">Policy number</dt>
+              <dd className="tabular font-medium">{samplePolicyNumber(trip.id, chosen.id)}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-500">Price</dt>
+              <dd className="tabular font-medium">£{chosen.price}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-ink-500">Cover</dt>
+              <dd className="flex items-center gap-1.5 font-medium">
+                <CalendarDays className="size-4 text-ink-400" />
+                {formatDate(trip.arrivalDate)} – {formatDate(trip.returnDate ?? trip.arrivalDate)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-ink-500">Vet fees abroad</dt>
+              <dd className="tabular font-medium">{chosen.details.vetFees}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-500">24/7 vet line</dt>
+              <dd className="font-medium">{chosen.details.vetLine}</dd>
+            </div>
+          </dl>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+            <ChangeInsuranceButton tripId={trip.id} />
+            <ButtonLink href={`/app?trip=${trip.id}`} iconRight={<ArrowRight className="size-4" />}>
+              Back to your journey
+            </ButtonLink>
+          </div>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>
       <PageHeader
-        title="Insurance"
-        description={
-          trip
-            ? `Cover ideas for ${trip.pets.map((p) => p.pet.name).join(" and ")} travelling to ${countryLabel(dest)}.`
-            : "Cover ideas for pets travelling abroad."
-        }
+        title={`Insure ${names}`}
+        description={`Four plans for ${countryLabel(trip.destination)}. We've picked the best fit — tap any card to compare.`}
       />
-      <div className="mb-6 flex gap-3 rounded-card border border-line bg-cream-50 p-4 text-[13px] text-ink-700">
+      <p className="mb-5 flex gap-2 text-[13px] text-ink-500">
         <Info className="mt-0.5 size-4 shrink-0 text-info-700" />
-        <p>
-          These are <strong>illustrative sample offers</strong> from made-up insurers, to show how PetJet could compare cover.
-          They aren&apos;t quotes, and PetJet doesn&apos;t sell insurance. Check that any policy covers{" "}
-          {species.map((s) => SPECIES_NAME[s]?.toLowerCase() ?? s).join(" and ")}s abroad before you buy.
-        </p>
-      </div>
-      <ul className="grid gap-4 lg:grid-cols-3" aria-label="Sample offers">
-        {list.map((o) => (
-          <li key={o.name} data-testid="insurance-offer" className="flex flex-col rounded-card border border-line bg-surface p-6 shadow-card">
-            <div className="flex items-start justify-between gap-2">
-              <span className="grid size-11 place-items-center rounded-2xl bg-sage-100 text-forest-800">
-                {o.tag === "Most cover" ? <ShieldCheck className="size-5" /> : <HeartPulse className="size-5" />}
-              </span>
-              <div className="flex flex-wrap justify-end gap-1.5">
-                <Badge tone={o.tag === "Recommended" ? "brand" : "neutral"}>{o.tag}</Badge>
-                <Badge tone="sample">Sample</Badge>
-              </div>
-            </div>
-            <p className="mt-4 font-semibold">{o.name}</p>
-            <p className="text-sm text-ink-500">{o.plan}</p>
-            <p className="tabular mt-4 text-3xl font-semibold tracking-tight">
-              £{o.price}
-              <span className="ml-1 text-sm font-normal text-ink-500">per trip</span>
-            </p>
-            <p className="tabular mt-1 text-[13px] text-ink-500">Vet fees abroad up to {o.vetCover}</p>
-            <ul className="mt-4 flex flex-1 flex-col gap-2 text-sm">
-              {o.points.map((p) => (
-                <li key={p} className="flex gap-2">
-                  <Check className="mt-0.5 size-4 shrink-0 text-forest-800" />
-                  {p}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-5 rounded-control bg-cream-200 px-3 py-2 text-center text-[13px] font-medium text-ink-500">
-              Illustrative only, not available to buy
-            </p>
-          </li>
-        ))}
-      </ul>
+        Sample offers from made-up insurers, to show how PetJet compares cover. Not real quotes.
+      </p>
+      <InsurancePicker tripId={trip.id} offers={offers} petName={names} />
     </>
   );
 }

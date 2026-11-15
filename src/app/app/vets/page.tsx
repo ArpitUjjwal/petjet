@@ -1,11 +1,14 @@
 import { BadgeCheck, CalendarCheck, CheckCircle2, FlaskConical, MapPin, Stethoscope } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cn } from "@/lib/cn";
 import { PageHeader } from "@/components/shell/app-shell";
 import { BookVet } from "@/components/vets/book-vet";
+import { VetSuccess } from "@/components/vets/vet-success";
 import { Badge } from "@/components/ui/badge";
 import { Callout, EmptyState } from "@/components/ui/feedback";
 import { requireOwner } from "@/lib/auth/session";
+import { simulationOn } from "@/lib/demo/simulate";
 import { DOC_TYPE_LABEL, isDocType } from "@/lib/documents/extract";
 import { listDocuments } from "@/lib/documents/repository";
 import { todayISO } from "@/lib/rules/dates";
@@ -43,6 +46,8 @@ export default async function VetsPage({ searchParams }: PageProps<"/app/vets">)
   const shown = matchProviders(vets, booking?.service ?? null, booking?.task.officialVet ?? false);
   const docs = booking ? (await listDocuments(user.id)).filter((d) => d.petId === booking.pet.id) : [];
   const requested = appointments.find((a) => a.id === str("requested"));
+  const simulated = str("simulated");
+  const prefill = simulationOn(user.email);
 
   return (
     <>
@@ -55,7 +60,22 @@ export default async function VetsPage({ searchParams }: PageProps<"/app/vets">)
         }
       />
 
-      {requested && (
+      {requested && simulated && (
+        <VetSuccess
+          practice={requested.provider.name}
+          when={`${isVetService(requested.service) ? SERVICE_LABEL[requested.service] : requested.service} for ${requested.pet.name} · ${slotLabel(requested.slot)}`}
+          steps={[
+            "Request sent with Bella's records",
+            `${requested.provider.name} accepted`,
+            ...(simulated === "recorded"
+              ? ["Appointment completed", `${isVetService(requested.service) ? SERVICE_LABEL[requested.service] : "Visit"} recorded on your plan`]
+              : []),
+          ].map((s) => s.replace("Bella", requested.pet.name))}
+          homeHref={requested.trip ? `/app?trip=${requested.trip.id}` : "/app"}
+        />
+      )}
+
+      {requested && !simulated && (
         <Callout tone="ok" icon={<CheckCircle2 className="size-4.5" />} title={`Request sent to ${requested.provider.name}`} className="mb-6">
           {slotLabel(requested.slot)}. You&apos;ll see here when they confirm.
         </Callout>
@@ -130,8 +150,18 @@ export default async function VetsPage({ searchParams }: PageProps<"/app/vets">)
           <EmptyState icon={<Stethoscope className="size-5" />} title="No partner practice offers this yet" description="Ask your usual vet. They can record it, and you can upload the record in Documents." />
         ) : (
           <ul className="grid gap-4 md:grid-cols-2">
-            {shown.map((v) => (
-              <li key={v.id} data-testid="vet-card" className="flex flex-col rounded-card border border-line bg-surface p-5 shadow-card">
+            {shown.map((v, i) => (
+              <li
+                key={v.id}
+                data-testid="vet-card"
+                className={cn(
+                  "flex flex-col rounded-card border bg-surface p-5",
+                  booking && i === 0 ? "border-forest-800 shadow-raised md:col-span-2" : "border-line shadow-card",
+                )}
+              >
+                {booking && i === 0 && (
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-forest-700">Best match for {booking.pet.name}</p>
+                )}
                 <div className="flex items-start gap-3">
                   <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-forest-800 text-cream-50">
                     <Stethoscope className="size-5" />
@@ -170,6 +200,7 @@ export default async function VetsPage({ searchParams }: PageProps<"/app/vets">)
                         label: isDocType(d.type) && d.type !== "OTHER" ? DOC_TYPE_LABEL[d.type] : "Other document",
                         confirmed: d.status === "CONFIRMED",
                       }))}
+                      prefill={prefill && i === 0}
                       context={{
                         petId: booking.pet.id,
                         petName: booking.pet.name,

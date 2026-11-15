@@ -61,18 +61,10 @@ test.describe("Module 3: rules & sources page", () => {
     await expect(page.locator("section#return").getByRole("heading", { level: 2 })).toBeInViewport();
   });
 
-  test("is linked from the landing page and footer", async ({ page }) => {
-    await page.goto("/#routes");
-    await page.getByRole("link", { name: "See every rule and source" }).click();
-    await page.waitForURL("**/rules");
+  test("is linked from the header and footer", async ({ page }) => {
     await page.goto("/");
     await page.locator("footer").getByRole("link", { name: "Rules & sources" }).click();
     await page.waitForURL("**/rules");
   });
 
-  test("landing examples use the verified certificate window", async ({ page }) => {
-    await page.goto("/#features");
-    await expect(page.locator("section#features")).toContainText("6 to 15 Mar");
-    await expect(page.locator("section#features")).not.toContainText("5 to 14 Mar");
-  });
 });

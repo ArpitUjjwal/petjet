@@ -83,6 +83,7 @@ test.describe("Module 4: questionnaire, guest to account", () => {
     await expect(plan).toContainText("last day of that month");
 
     // The rule behind a task, with its official source
+    await plan.getByTestId("task-ahc").getByText("Details", { exact: true }).click();
     await plan.getByTestId("task-ahc").getByText("Why is this needed?").click();
     await expect(
       plan.getByTestId("task-ahc").getByRole("link", { name: /GOV.UK: Getting an animal health certificate/ }),
@@ -94,8 +95,10 @@ test.describe("Module 4: questionnaire, guest to account", () => {
     expect(await page.evaluate(() => localStorage.getItem("petjet.plan-draft.v1"))).toBeNull();
     await page.goto("/app/pets");
     await expect(page.getByTestId("pet-card")).toContainText("Milo");
+    /* "Trip plan" in the menu goes straight to the only trip */
     await page.goto("/app/trips");
-    await expect(page.getByTestId("trip-card")).toContainText("Milo");
+    await page.waitForURL(/\/app\/trips\/[^/]+$/);
+    await expect(page.getByTestId("plan-Milo")).toBeVisible();
     // Since Module 5 the dashboard shows the trip itself rather than a card
     await page.goto("/app");
     await expect(page.getByTestId("tile-hero")).toContainText("Great Britain to France");

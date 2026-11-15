@@ -133,6 +133,9 @@ model Trip {
   petPlacement     String    @default("NO_PREFERENCE")
   /// YES | SOME | NO
   recordsAvailable String    @default("NO")
+  /// Sample insurance offer id chosen for this trip (see src/lib/insurance/offers.ts)
+  insuranceOffer    String?
+  insuranceChosenAt DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   pets             TripPet[]

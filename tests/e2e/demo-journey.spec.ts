@@ -33,7 +33,7 @@ test("the demo journey: owner → vet → lab → flights, ready to fly with onl
   });
   await page.getByRole("button", { name: "Upload and read" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Microchip");
-  await page.getByRole("button", { name: "Confirm and update plan" }).click();
+  await page.getByRole("button", { name: "Looks right, confirm" }).click();
   await expect(page.getByTestId("document-status")).toHaveAttribute("data-status", "CONFIRMED");
 
   // 2. Requests an official vet for the health certificate and shares the record
@@ -89,24 +89,29 @@ test("the demo journey: owner → vet → lab → flights, ready to fly with onl
   await expect(plan.getByTestId("task-ahc")).toHaveAttribute("data-status", "DONE");
   await expect(page.getByTestId("trip-lab-result")).toContainText("0.8 IU/mL · Pass");
 
-  // 6. Upgrades, books the hold flight out and the cargo flight home, and gets the e-ticket
+  // 6. Upgrades, then books the recommended hold flight out and cargo flight home in one go
   await page.goto("/app/flights");
-  await page.locator('[data-testid="flight"][data-airline="AF"]').first().getByRole("link", { name: "Upgrade to book" }).click();
+  await page.getByTestId("upgrade-banner").getByRole("link", { name: "Upgrade to book" }).click();
   await page.getByTestId("tier-COMPLETE").getByRole("button", { name: "Pay £39 (simulated)" }).click();
   await page.waitForURL(/\/app\/flights\?.*upgraded=1/);
-  await page.locator('[data-testid="flight"][data-airline="AF"]').first().getByRole("button", { name: /^Book / }).click();
-  await page.waitForURL(/\/app\/flights\/[^/]+\?booked=1$/);
-  await expect(page.getByTestId("e-ticket")).toContainText("In the hold");
-  await page.getByRole("link", { name: "Book the journey home" }).click();
-  await page.getByTestId("flight").first().getByRole("button", { name: /^Book / }).click();
-  await page.waitForURL(/\/app\/flights\/[^/]+\?booked=1$/);
-  await expect(page.getByText("Your approved route home is now ticked off.")).toBeVisible();
+  await expect(page.getByTestId("recommended-flights")).toContainText("In the hold");
+  await expect(page.getByTestId("recommended-flights")).toContainText("Hold, as cargo");
+  await page.getByRole("button", { name: "Book both flights" }).click();
+  await expect(page.getByTestId("flights-booked")).toContainText("Both flights booked.");
 
-  // 7. Ready to fly: everything for the trip out is done; only the return tapeworm dose is left
+  // 7. Insurance is the last step on the journey; choosing cover makes the trip ready to fly
   await page.goto("/app");
-  await expect(page.getByTestId("readiness-count")).toHaveText("6 of 7 steps");
-  await expect(page.getByTestId("tile-next")).toContainText("Tapeworm treatment before coming home");
+  await expect(page.getByTestId("readiness")).toContainText("6 of 7 steps");
+  await expect(page.locator('[data-testid="journey-step"][data-step="insurance"]')).toHaveAttribute("data-state", "current");
+  await page.getByTestId("journey-current").getByRole("link", { name: "Compare cover" }).click();
+  await expect(page.getByTestId("insurance-offer")).toHaveCount(4);
+  await page.getByRole("button", { name: "Choose this cover" }).click();
+  await expect(page.getByTestId("insurance-policy")).toContainText("Sample, not a real policy");
+  await page.goto("/app");
+  await expect(page.getByTestId("ready-to-fly")).toContainText("While you're away");
+  await expect(page.getByTestId("ready-to-fly")).toContainText("tapeworm");
   await expect(page.getByTestId("dashboard-booking")).toHaveCount(2);
+  await expect(page.getByTestId("dashboard-insurance")).toBeVisible();
   await shot(page, info.outputPath("ready-to-fly.png"));
   await page.goto(tripUrl);
   const open = plan.locator('[data-testid^="task-"][data-status="TODO"]');
@@ -131,11 +136,78 @@ test("the demo bar switches between the demo accounts, and real accounts never s
 
   await bar.getByRole("button", { name: "Switch to pet owner" }).click();
   await page.waitForURL((u) => u.pathname === "/app");
-  await expect(bar.getByRole("button", { name: "Pet owner" })).toHaveAttribute("aria-pressed", "true");
+  /* The owner side has no switching, just a way to restart the guided demo */
+  await expect(page.getByRole("region", { name: "Demo", exact: true }).getByRole("button", { name: "Restart demo" })).toBeVisible();
 
   /* Signed-in users are sent away from the sign-up page, so start a fresh session */
   await page.context().clearCookies();
   await signUpNewOwner(page, "Real Owner", `bc-bar-${info.project.name}`);
   await expect(page.getByRole("region", { name: "Demo switcher" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Demo", exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("the guided demo: five steps from the prefilled trip to ready to fly, the vet replying by itself", async ({ page }, info) => {
+  /* Uses the shared demo owner, so it runs once (desktop) rather than in parallel on both projects */
+  test.skip(info.project.name !== "desktop", "Mutates the shared demo owner");
+  test.setTimeout(120_000);
+  const errors = trackErrors(page);
+  await login(page, "owner");
+  await page.getByRole("button", { name: "Restart demo" }).click();
+  await expect(page.getByTestId("journey")).toContainText("0 of 5 done");
+  /* The cost and the savings are on Home from the start */
+  await expect(page.getByTestId("cost-total")).toHaveText(/^£[\d,]+$/);
+  await expect(page.getByTestId("cost-saved")).toHaveText(/^£[1-9][\d,]*$/);
+  await expect(page.getByTestId("cost-saved-agency")).toContainText("less");
+  const step = (id: string) => page.locator(`[data-testid="journey-step"][data-step="${id}"]`);
+  const next = page.getByTestId("journey-current");
+
+  // 1. Documents: the microchip certificate is already read
+  await next.getByRole("link", { name: "Check details" }).click();
+  await page.getByRole("button", { name: "Looks right, confirm" }).click();
+  await page.getByRole("link", { name: "Back to your journey" }).click();
+  await expect(step("documents")).toHaveAttribute("data-state", "done");
+
+  // 2. Health certificate: one tap books the best match, which accepts and completes it
+  await next.getByRole("link", { name: "Book a vet" }).click();
+  await expect(page.getByTestId("vet-price")).toContainText("partner price, save");
+  await page.getByTestId("vet-card").first().getByRole("button", { name: /^Book / }).click();
+  await expect(page.getByTestId("vet-success")).toContainText("Appointment completed");
+  await expect(page.getByTestId("owner-appointment").first()).toHaveAttribute("data-status", "COMPLETED");
+  await page.getByRole("link", { name: "Back to your journey" }).click();
+  await expect(step("certificate")).toHaveAttribute("data-state", "done");
+
+  // 3. Flights
+  await next.getByRole("link", { name: "See flights" }).click();
+  await page.getByRole("button", { name: "Book both flights" }).click();
+  await page.getByTestId("flights-booked").getByRole("link", { name: "Back to your journey" }).click();
+  await expect(step("flights")).toHaveAttribute("data-state", "done");
+
+  // 4. Insurance: four insurers with logos, a comparison, the recommended one preselected
+  await next.getByRole("link", { name: "Compare cover" }).click();
+  const offers = page.getByTestId("insurance-offer");
+  await expect(offers).toHaveCount(4);
+  await expect(offers.locator("img")).toHaveCount(4);
+  await expect(page.getByTestId("insurance-saving")).toHaveCount(4);
+  await expect(offers.filter({ hasText: "Recommended" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: "Compare all details" }).click();
+  await expect(page.getByRole("table")).toContainText("Excess per claim");
+  await page.getByRole("button", { name: "Choose this cover" }).click();
+  await expect(page.getByTestId("insurance-policy")).toContainText("Abroad Plus");
+  await expect(page.getByTestId("insurance-policy").getByRole("img", { name: "Meadow Mutual" })).toBeVisible();
+  await page.getByRole("link", { name: "Back to your journey" }).click();
+
+  // 5. Ready to fly
+  await expect(page.getByTestId("ready-to-fly")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("ready to fly");
+  await shot(page, info.outputPath("guided-ready-to-fly.png"));
+  await page.getByRole("link", { name: "See the breakdown" }).click();
+  const breakdown = page.getByTestId("cost-breakdown");
+  await expect(breakdown).toContainText("You save");
+  await expect(breakdown.getByText("estimate", { exact: true })).toHaveCount(0);
+  await page.goto("/app");
+
+  await page.getByRole("button", { name: "Restart demo" }).click();
+  await expect(page.getByTestId("journey")).toContainText("0 of 5 done");
   expect(errors).toEqual([]);
 });

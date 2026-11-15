@@ -120,15 +120,9 @@ export default async function DocumentPage({ params, searchParams }: PageProps<"
                 })}
               </dl>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                {doc.trip ? (
-                  <ButtonLink href={`/app/trips/${doc.trip.id}`} variant="secondary" iconRight={<ArrowRight className="size-4" />}>
-                    See {routeTitle(doc.trip)}
-                  </ButtonLink>
-                ) : (
-                  <ButtonLink href={`/app/pets/${doc.petId}`} variant="secondary" iconRight={<ArrowRight className="size-4" />}>
-                    See {doc.pet.name}&apos;s profile
-                  </ButtonLink>
-                )}
+                <ButtonLink href={doc.trip ? `/app?trip=${doc.trip.id}` : "/app"} iconRight={<ArrowRight className="size-4" />}>
+                  Back to your journey
+                </ButtonLink>
                 <DeleteDocumentButton id={doc.id} confirmed />
               </div>
             </>

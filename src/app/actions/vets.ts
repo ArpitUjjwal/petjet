@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOwner, requireProvider } from "@/lib/auth/session";
+import { simulateVetResponse, simulationOn } from "@/lib/demo/simulate";
 import { todayISO } from "@/lib/rules/dates";
 import { loadRules } from "@/lib/rules/repository";
 import {
@@ -20,10 +21,13 @@ import {
 export async function requestAppointmentAction(input: AppointmentRequest): Promise<VetResult> {
   const user = await requireOwner();
   const { rules } = await loadRules();
-  const result = await requestAppointment(user.id, input, todayISO(), rules);
+  const today = todayISO();
+  const result = await requestAppointment(user.id, input, today, rules);
   if (!result.ok) return result;
+  /* Demo accounts: the practice answers straight away, so the happy path needs no account switching */
+  const simulated = simulationOn(user.email) ? await simulateVetResponse(result.appointmentId, today, rules) : null;
   revalidatePath("/app", "layout");
-  redirect(`/app/vets?requested=${result.appointmentId}`);
+  redirect(`/app/vets?requested=${result.appointmentId}${simulated?.accepted ? `&simulated=${simulated.recorded ? "recorded" : "accepted"}` : ""}`);
 }
 
 /* ---------- Vet ---------- */

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { formatDate, todayISO } from "../../src/lib/rules/dates";
-import { nextTask, readiness } from "../../src/lib/trips/dashboard";
+import { readiness } from "../../src/lib/trips/dashboard";
 import { openWindow, windowLabel } from "../../src/lib/trips/format";
 import { planTrip, type PetRecord, type TripRecord } from "../../src/lib/trips/plan";
 import { day, expectNoHorizontalScroll, planTripAs, shot, signUpNewOwner, trackErrors, type NewPet } from "./helpers";
@@ -53,7 +53,6 @@ test.describe("Module 5: dashboard and checklist", () => {
     const plan = engine.pets[0].plan;
     if (!plan.supported) throw new Error("expected a supported plan");
     const ready = readiness(engine.pets);
-    const next = nextTask(engine.pets, TODAY)!;
 
     await page.goto("/app");
     const dash = page.getByTestId("dashboard");
@@ -61,10 +60,10 @@ test.describe("Module 5: dashboard and checklist", () => {
     await expect(dash.getByTestId("countdown")).toContainText("120");
     await expect(dash.getByTestId("trip-status")).toContainText("In progress");
     await expect(dash.getByTestId("readiness-count")).toHaveText(`${ready.done} of ${ready.total} steps`);
-    await expect(dash.getByTestId("next-title")).toHaveText(next.task.title);
-    await expect(dash.getByTestId("tile-attention")).toContainText("Nothing urgent");
-    await expect(dash.getByTestId("tile-timeline")).toContainText("Today");
-    await expect(dash.getByTestId("tile-pets")).toContainText("Milo");
+    /* Home is the guided journey: one current step, and no problem panel when nothing blocks the plan */
+    await expect(dash.getByTestId("journey-current")).toBeVisible();
+    await expect(dash.getByTestId("tile-attention")).toHaveCount(0);
+    await expect(dash.getByTestId("tile-hero")).toContainText("Milo");
     await expectNoHorizontalScroll(page);
     await shot(page, info.outputPath("dashboard.png"));
 
@@ -77,6 +76,7 @@ test.describe("Module 5: dashboard and checklist", () => {
     await expect(checklist.locator("[data-testid^='task-']")).toHaveCount(plan.tasks.length);
     const ahc = plan.tasks.find((t) => t.id === "ahc")!;
     await expect(checklist.getByTestId("task-ahc")).toContainText(windowLabel(openWindow(ahc.window, TODAY))!);
+    await checklist.getByTestId("task-ahc").getByText("Details", { exact: true }).click();
     await checklist.getByTestId("task-ahc").getByText("Why is this needed?").click();
     await expect(checklist.getByTestId("task-ahc").getByRole("link", { name: /GOV.UK/ }).first()).toHaveAttribute("href", /gov\.uk/);
     // Vet steps can't be ticked off by the owner
@@ -108,7 +108,6 @@ test.describe("Module 5: dashboard and checklist", () => {
     const conflict = page.getByTestId("attention-conflict");
     await expect(conflict).toContainText("Your dates don't work yet");
     await expect(conflict).toContainText("21 full days");
-    await expect(page.getByTestId("tile-pets")).toContainText("Not ready for this date");
     await shot(page, info.outputPath("conflict.png"));
 
     // The fix: the earliest arrival after the 21-day wait, keeping the 10-day trip
@@ -127,7 +126,7 @@ test.describe("Module 5: dashboard and checklist", () => {
     await expect(page.getByTestId("attention-conflict")).toHaveCount(0);
     await expect(page.getByTestId("trip-status")).toContainText("In progress");
     await expect(page.getByTestId("countdown")).toContainText("22");
-    await expect(page.getByTestId("next-title")).toHaveText("Rabies vaccination");
+    await expect(page.getByTestId("journey")).toBeVisible();
     expect(errors).toEqual([]);
   });
 
@@ -197,16 +196,16 @@ test.describe("Module 5: dashboard and checklist", () => {
     await page.goto("/app");
     const before = await page.getByTestId("readiness-count").textContent();
     const doneBefore = Number(before!.split(" ")[0]);
-    await expect(page.getByTestId("next-title")).toHaveText("CDC Dog Import Form");
 
-    // From the dashboard's next step
-    await page.getByTestId("tile-next").getByRole("button", { name: "Mark as done: CDC Dog Import Form for Rex" }).click();
+    // From the checklist
+    await page.goto(tripUrl);
+    await page.getByTestId("plan-Rex").getByRole("button", { name: "Mark as done: CDC Dog Import Form for Rex" }).click();
     const dialog = page.getByRole("dialog", { name: "Have you submitted the CDC Dog Import Form?" });
     await expect(dialog.getByLabel("Date on the receipt")).toHaveValue(TODAY);
     await dialog.getByRole("button", { name: "Yes, it's done" }).click();
     await expect(page.getByText("Step done")).toBeVisible();
+    await page.goto("/app");
     await expect(page.getByTestId("readiness-count")).toHaveText(new RegExp(`^${doneBefore + 1} of`));
-    await expect(page.getByTestId("next-title")).not.toHaveText("CDC Dog Import Form");
 
     // The checklist shows who confirmed it, and it can be undone
     await page.goto(tripUrl);
@@ -234,7 +233,6 @@ test.describe("Module 5: dashboard and checklist", () => {
     await planTripAs(page, { pet: { existing: "Milo" }, to: "Ireland", arrive: day(40), back: day(50), landing: "DUB" });
 
     await page.goto("/app");
-    await expect(page.getByText("You have 2 trips planned.")).toBeVisible();
     await expect(page.getByTestId("tile-hero")).toContainText("Great Britain to Ireland");
     const switcher = page.getByRole("button", { name: /Switch trip/ });
     await switcher.click();

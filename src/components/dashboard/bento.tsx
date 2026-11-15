@@ -138,18 +138,26 @@ export function HeroTile({
   count,
   today,
   deadlines,
+  ready,
+  className,
 }: {
   trip: HeroTrip;
   status: TripStatus;
   count: Countdown;
   today: ISODate;
   deadlines: ISODate[];
+  /** When given, a slim readiness bar replaces the runway (the simple Home) */
+  ready?: Readiness;
+  className?: string;
 }) {
   return (
     <section
       data-testid="tile-hero"
       aria-label="Trip overview"
-      className="animate-rise relative overflow-hidden rounded-card bg-forest-800 p-6 text-cream-50 shadow-raised sm:p-7 lg:col-span-4"
+      className={cn(
+        "animate-rise relative overflow-hidden rounded-card bg-forest-800 p-6 text-cream-50 shadow-raised sm:p-7",
+        className ?? "lg:col-span-4",
+      )}
     >
       <Plane aria-hidden className="absolute -right-10 -top-10 size-56 -rotate-12 text-forest-700/70" strokeWidth={0.75} />
       <div className="relative flex flex-wrap items-center justify-between gap-3">
@@ -186,13 +194,14 @@ export function HeroTile({
           </p>
           <p className="mt-3 flex flex-wrap gap-2">
             {trip.pets.map((p) => (
-              <span
+              <Link
                 key={p.id}
-                className="inline-flex items-center gap-1.5 rounded-full bg-forest-700 px-2.5 py-1 text-xs font-medium text-cream-50"
+                href={`/app/pets/${p.id}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-forest-700 px-2.5 py-1 text-xs font-medium text-cream-50 hover:bg-forest-600"
               >
                 <SpeciesIcon species={p.species} className="size-3.5 text-tan-200" />
                 {p.name}
-              </span>
+              </Link>
             ))}
           </p>
         </div>
@@ -204,14 +213,36 @@ export function HeroTile({
         </div>
       </div>
 
-      <Runway trip={trip} today={today} deadlines={deadlines} />
-
-      <div className="relative mt-6 flex flex-wrap gap-2.5">
-        <ButtonLink href={`/app/trips/${trip.id}`} variant="accent" iconRight={<ArrowRight className="size-4" />}>
-          Open checklist
-        </ButtonLink>
-        <EditDatesButton />
-      </div>
+      {ready ? (
+        <div className="relative mt-6" data-testid="readiness">
+          <div className="flex items-center justify-between text-xs text-sage-200">
+            <span>Trip readiness</span>
+            <span className="tabular" data-testid="readiness-count">
+              {ready.done} of {ready.total} steps
+            </span>
+          </div>
+          <div
+            className="mt-1.5 h-2 overflow-hidden rounded-full bg-forest-700"
+            role="progressbar"
+            aria-label="Trip readiness"
+            aria-valuemin={0}
+            aria-valuemax={ready.total}
+            aria-valuenow={ready.done}
+          >
+            <div className="h-full rounded-full bg-tan-500 transition-[width] duration-700" style={{ width: `${ready.pct}%` }} />
+          </div>
+        </div>
+      ) : (
+        <>
+          <Runway trip={trip} today={today} deadlines={deadlines} />
+          <div className="relative mt-6 flex flex-wrap gap-2.5">
+            <ButtonLink href={`/app/trips/${trip.id}`} variant="accent" iconRight={<ArrowRight className="size-4" />}>
+              Open checklist
+            </ButtonLink>
+            <EditDatesButton />
+          </div>
+        </>
+      )}
     </section>
   );
 }

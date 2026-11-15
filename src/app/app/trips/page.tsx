@@ -1,5 +1,6 @@
 import { Plane, Plus } from "lucide-react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shell/app-shell";
 import { TripCard } from "@/components/trips/trip-card";
 import { ButtonLink } from "@/components/ui/button";
@@ -10,18 +11,20 @@ import { loadRules } from "@/lib/rules/repository";
 import { planStoredTrip } from "@/lib/trips/plan";
 import { listTrips } from "@/lib/trips/repository";
 
-export const metadata: Metadata = { title: "My trips" };
+export const metadata: Metadata = { title: "Trip plan" };
 
 export default async function TripsPage() {
   const user = await requireOwner();
   const today = todayISO();
   const [trips, { rules }] = await Promise.all([listTrips(user.id), loadRules()]);
+  /* "Trip plan" in the menu: with one trip, go straight to its plan */
+  if (trips.length === 1) redirect(`/app/trips/${trips[0].id}`);
 
   return (
     <>
       <PageHeader
-        title="My trips"
-        description="Every trip has its own plan for each pet travelling."
+        title="Your trips"
+        description="Choose a trip to see its plan."
         action={
           trips.length > 0 ? (
             <ButtonLink href="/plan" iconLeft={<Plus className="size-4" />}>

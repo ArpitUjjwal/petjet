@@ -26,7 +26,7 @@ test("owner → vet → lab: a booked vet issues the certificate and a lab resul
     ),
   });
   await page.getByRole("button", { name: "Upload and read" }).click();
-  await page.getByRole("button", { name: "Confirm and update plan" }).click();
+  await page.getByRole("button", { name: "Looks right, confirm" }).click();
   await expect(page.getByTestId("document-status")).toHaveAttribute("data-status", "CONFIRMED");
 
   // From the checklist step to a matching official vet

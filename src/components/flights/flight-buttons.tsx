@@ -2,7 +2,7 @@
 
 import { CreditCard, Plane } from "lucide-react";
 import { useState, useTransition } from "react";
-import { bookFlightAction, upgradeAction } from "@/app/actions/flights";
+import { bookFlightAction, bookRecommendedAction, upgradeAction } from "@/app/actions/flights";
 import { Button } from "@/components/ui/button";
 
 export function BookFlightButton({ tripId, leg, flightId, label }: { tripId: string; leg: string; flightId: string; label: string }) {
@@ -51,6 +51,30 @@ export function UpgradeButton({ plan, price, next, highlighted }: { plan: string
         Pay £{price} (simulated)
       </Button>
       {error && <p role="alert" className="mt-2 text-[12px] text-danger-700">{error}</p>}
+    </div>
+  );
+}
+
+export function BookRecommendedButton({ tripId, label }: { tripId: string; label: string }) {
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="flex flex-col items-stretch gap-1 sm:items-end">
+      <Button
+        size="lg"
+        loading={pending}
+        iconLeft={<Plane className="size-4" />}
+        onClick={() =>
+          start(async () => {
+            setError(null);
+            const r = await bookRecommendedAction(tripId);
+            if (r && !r.ok) setError(r.message);
+          })
+        }
+      >
+        {label}
+      </Button>
+      {error && <p role="alert" className="text-[12px] text-danger-700">{error}</p>}
     </div>
   );
 }

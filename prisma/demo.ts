@@ -12,8 +12,8 @@ async function main() {
     [
       "Demo ready.",
       `  Bella the Cockapoo flies Great Britain to France on ${out}, home a week later.`,
-      "  Rabies certificate confirmed; microchip certificate waiting for review; Travel Plan (upgrade to book flights).",
-      `  Log in as ${DEMO_ACCOUNTS.owner.email} (password ${DEMO_PASSWORD}) and use the demo bar to switch to the vet and lab.`,
+      "  Rabies certificate confirmed; microchip certificate waiting for review; Complete plan.",
+      `  Log in as ${DEMO_ACCOUNTS.owner.email} (password ${DEMO_PASSWORD}) and follow the journey on Home. The vet replies automatically.`,
     ].join("\n"),
   );
 }

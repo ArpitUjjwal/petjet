@@ -6,7 +6,7 @@ test.describe("Module 2: landing page", () => {
     const errors = trackErrors(page);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pet travel, simplified.");
-    for (const id of ["features", "how-it-works", "routes", "pricing", "faq"]) {
+    for (const id of ["how-it-works", "pricing"]) {
       const section = page.locator(`section#${id}`);
       await section.scrollIntoViewIfNeeded();
       await expect(section).toBeVisible();
@@ -31,22 +31,20 @@ test.describe("Module 2: landing page", () => {
     await expect(page.getByTestId("tier-PLAN")).toHaveCSS("opacity", "1");
   });
 
-  test("hero calls to action go to sign-up and how it works", async ({ page }) => {
+  test("keeps the landing page short: hero, how it works, pricing", async ({ page }) => {
+    await page.goto("/");
+    for (const id of ["features", "routes", "faq"]) await expect(page.locator(`section#${id}`)).toHaveCount(0);
+  });
+
+  test("hero calls to action: plan a trip, or try the demo in one click", async ({ page }) => {
     await page.goto("/");
     const hero = page.locator("section").first();
     await expect(hero.getByRole("link", { name: "Plan my trip" })).toHaveAttribute("href", "/plan");
-    await hero.getByRole("link", { name: "How it works" }).click();
-    await expect(page).toHaveURL(/#how-it-works$/);
-    await expect(page.locator("section#how-it-works").getByRole("heading", { level: 2 })).toBeInViewport();
+    await hero.getByRole("button", { name: "Try the demo" }).click();
+    await page.waitForURL((u) => u.pathname === "/app");
+    await expect(page.getByTestId("journey").or(page.getByTestId("ready-to-fly"))).toBeVisible();
   });
 
-  test("shows the three supported routes and is honest about the rest", async ({ page }) => {
-    await page.goto("/#routes");
-    for (const id of ["gb-fr", "gb-ie", "gb-us"]) await expect(page.getByTestId(`route-${id}`)).toBeVisible();
-    await expect(page.getByTestId("route-gb-ie")).toContainText("tapeworm treatment 1 to 5 days");
-    await expect(page.getByTestId("route-gb-us")).not.toContainText("Ferrets");
-    await expect(page.locator("section#routes")).toContainText("rather than guess");
-  });
 
   test("pricing shows the three tiers and that payments are simulated", async ({ page }) => {
     await page.goto("/#pricing");
@@ -59,16 +57,6 @@ test.describe("Module 2: landing page", () => {
     await page.waitForURL("**/plan");
   });
 
-  test("FAQ answers open and close", async ({ page }) => {
-    await page.goto("/#faq");
-    const question = page.getByText("Does PetJet issue health certificates?");
-    const answer = page.getByText("An animal health certificate must be issued by an official vet.");
-    await expect(answer).toBeHidden();
-    await question.click();
-    await expect(answer).toBeVisible();
-    await question.click();
-    await expect(answer).toBeHidden();
-  });
 
   test("header navigation works on desktop and through the mobile menu", async ({ page, isMobile }) => {
     await page.goto("/");

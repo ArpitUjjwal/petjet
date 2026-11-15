@@ -265,7 +265,7 @@ export function ReviewForm({
                 disabled={blocking.length > 0 || (checks.length > 0 && !ack) || (needsTrip && !tripId)}
                 iconLeft={<CheckCircle2 className="size-4" />}
               >
-                Confirm and update plan
+                Looks right, confirm
               </Button>
             </div>
           </div>

@@ -31,6 +31,9 @@ test("search is free; upgrading unlocks booking, the boarding pass and the appro
   await page.waitForURL(/\/app\/flights\?.*upgraded=1/);
   await expect(page.getByText("You're on the Complete plan")).toBeVisible();
   await expect(page.getByTestId("upgrade-banner")).toHaveCount(0);
+  /* Booked from the full list here; the recommended pair has its own one-tap button */
+  await expect(page.getByTestId("recommended-flights")).toBeVisible();
+  await page.getByText("See all flights").click();
 
   await page.locator('[data-testid="flight"][data-airline="AF"]').first().getByRole("button", { name: /^Book / }).click();
   await page.waitForURL(/\/app\/flights\/[^/]+\?booked=1$/);
@@ -43,6 +46,7 @@ test("search is free; upgrading unlocks booking, the boarding pass and the appro
 
   // Home to Great Britain: cargo only, and booking it ticks off the approved route
   await page.getByRole("link", { name: "Book the journey home" }).click();
+  await page.getByText("See all flights").click();
   const home = page.getByTestId("flight").first();
   await expect(home.getByTestId("pet-eligibility")).toContainText("Hold, as cargo.");
   await home.getByRole("button", { name: /^Book / }).click();
@@ -54,12 +58,13 @@ test("search is free; upgrading unlocks booking, the boarding pass and the appro
   await expect(route).toHaveAttribute("data-status", "DONE");
   await expect(route.getByTestId("task-recorded-by")).toContainText("Booked with");
 
-  await page.goto("/app");
-  await expect(page.getByTestId("dashboard-booking")).toHaveCount(2);
-  await shot(page, info.outputPath("dashboard.png"));
+  await page.goto("/app/bookings");
+  await expect(page.getByTestId("booking-flights")).toContainText("Done");
+  await expect(page.getByTestId("booking-flights").getByRole("img")).toHaveCount(2);
+  await shot(page, info.outputPath("bookings.png"));
 
   await page.goto("/app/insurance");
-  await expect(page.getByTestId("insurance-offer")).toHaveCount(3);
+  await expect(page.getByTestId("insurance-offer")).toHaveCount(4);
   await expect(page.getByTestId("insurance-offer").first()).toContainText("Sample");
   await shot(page, info.outputPath("insurance.png"));
   expect(errors).toEqual([]);

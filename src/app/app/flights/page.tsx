@@ -1,7 +1,7 @@
 import { ArrowRight, CheckCircle2, Info, Lock, Plane, PlaneLanding, PlaneTakeoff, Ticket, XCircle } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookFlightButton } from "@/components/flights/flight-buttons";
+import { BookFlightButton, BookRecommendedButton } from "@/components/flights/flight-buttons";
 import { PageHeader } from "@/components/shell/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -19,13 +19,15 @@ import {
   flightEligibility,
   type Leg,
 } from "@/lib/flights/core";
-import { flightsForTrip, listBookings, petsForFlights } from "@/lib/flights/repository";
+import { flightsForTrip, legPrices, listBookings, petsForFlights, recommendFlights } from "@/lib/flights/repository";
 import { formatDate, todayISO } from "@/lib/rules/dates";
 import { pickTrip } from "@/lib/trips/dashboard";
 import { routeTitle } from "@/lib/trips/plan";
 import { listTrips } from "@/lib/trips/repository";
 
 export const metadata: Metadata = { title: "Flights" };
+
+const legs_count = (trip: { returnDate: string | null }) => (trip.returnDate ? 2 : 1);
 
 export default async function FlightsPage({ searchParams }: PageProps<"/app/flights">) {
   const user = await requireOwner();
@@ -59,6 +61,11 @@ export default async function FlightsPage({ searchParams }: PageProps<"/app/flig
   const pets = petsForFlights(trip);
   const here = `/app/flights?trip=${trip.id}&leg=${leg}`;
   const missingWeight = pets.filter((p) => p.weightKg === null);
+  const rec = canBook ? recommendFlights(trip, bookings) : { out: null, home: null };
+  const recPicks = [rec.out && { label: "Out", ...rec.out }, rec.home && { label: "Home", ...rec.home }].filter((x) => !!x);
+  const legCosts = canBook ? legPrices(trip, bookings).filter((l) => !l.booked) : [];
+  const flightSaving = legCosts.reduce((n, l) => n + Math.max(l.average - l.amount, 0), 0);
+  const allBooked = bookings.length > 0 && legs_count(trip) === bookings.length;
 
   const legs = [
     { id: "OUTBOUND" as const, label: "Journey out", date: trip.arrivalDate, icon: PlaneTakeoff },
@@ -77,6 +84,79 @@ export default async function FlightsPage({ searchParams }: PageProps<"/app/flig
           Booking is unlocked. Payment was simulated; no money was taken.
         </Callout>
       )}
+
+      {allBooked && (
+        <section data-testid="flights-booked" className="mb-6 rounded-card border border-forest-800 bg-surface p-5 shadow-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 font-semibold">
+              <CheckCircle2 className="size-5 text-ok-700" /> {sp.booked ? "Both flights booked." : "Your flights are booked."}
+            </p>
+            <ButtonLink href={`/app?trip=${trip.id}`} iconRight={<ArrowRight className="size-4" />}>
+              Back to your journey
+            </ButtonLink>
+          </div>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {bookings.map((b) => (
+              <li key={b.id}>
+                <Link href={`/app/flights/${b.id}`} className="flex items-center gap-3 rounded-control border border-line p-3 hover:bg-sage-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={AIRLINES[b.airline as keyof typeof AIRLINES]?.logo} alt="" className="h-5 w-20 object-contain object-left" />
+                  <span className="tabular text-sm">
+                    <span className="font-semibold">
+                      {b.fromCode} {b.departTime} → {b.toCode}
+                    </span>
+                    <span className="block text-xs text-ink-500">
+                      {b.leg === "OUTBOUND" ? "Out" : "Home"} · {formatDate(b.departDate)} · Boarding pass
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {recPicks.length > 0 && (
+        <section data-testid="recommended-flights" className="mb-6 rounded-card border border-forest-800 bg-surface p-5 shadow-raised">
+          <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">Recommended for {pets.map((p) => p.name).join(" and ")}</p>
+          <ul className="mt-3 flex flex-col gap-3">
+            {recPicks.map(({ label, flight: f, check }) => (
+              <li key={f.id} className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-control bg-cream-50 p-3">
+                <span className="w-12 text-xs font-semibold uppercase text-ink-500">{label}</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={AIRLINES[f.airline].logo} alt={AIRLINES[f.airline].name} className="h-5 w-24 object-contain object-left" />
+                <span className="tabular text-sm font-semibold">
+                  {f.from} {f.depart} → {f.to} {f.arrive}
+                </span>
+                <span className="tabular text-xs text-ink-500">{formatDate(f.date)} · {f.flightNumber}</span>
+                <span className="text-xs text-ink-700">{check.placement ? PLACEMENT_LABEL[check.placement] : ""}</span>
+                <span className="tabular ml-auto text-sm font-semibold">£{check.price}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[13px] text-ink-500">
+            {recPicks.map((r) => r.check.pets[0]?.summary).filter(Boolean)[0]}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="tabular text-sm">
+              Total <span className="font-semibold">£{recPicks.reduce((n, r) => n + r.check.price, 0)}</span>
+              <span className="ml-1 text-xs text-ink-500">incl. pet fees · sample fares</span>
+              {flightSaving > 0 && (
+                <span className="block text-xs text-ok-700" data-testid="flight-saving">
+                  £{flightSaving} less than the average flight that takes {pets.map((p) => p.name).join(" and ")}
+                </span>
+              )}
+            </p>
+            <BookRecommendedButton tripId={trip.id} label={recPicks.length === 2 ? "Book both flights" : "Book this flight"} />
+          </div>
+        </section>
+      )}
+
+      <details className="group" open={recPicks.length === 0 && !allBooked}>
+        <summary className="mb-4 cursor-pointer list-none text-sm font-medium text-forest-800 hover:underline [&::-webkit-details-marker]:hidden">
+          <span className="group-open:hidden">See all flights</span>
+          <span className="hidden group-open:inline">Hide all flights</span>
+        </summary>
 
       {trips.length > 1 && (
         <nav aria-label="Trips" className="mb-4 flex flex-wrap gap-2">
@@ -244,6 +324,7 @@ export default async function FlightsPage({ searchParams }: PageProps<"/app/flig
           );
         })}
       </ul>
+      </details>
     </>
   );
 }

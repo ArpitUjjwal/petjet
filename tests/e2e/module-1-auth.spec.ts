@@ -81,7 +81,8 @@ test.describe("Module 1: login and logout", () => {
     await page.getByRole("button", { name: "Log in" }).click();
 
     await page.waitForURL("**/app");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome, Mariyam.");
+    /* The demo owner may be anywhere on the guided journey (another test restarts and finishes it) */
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^(Hi Mariyam|Bella is ready to fly)/);
     await expectNoHorizontalScroll(page);
     await page.screenshot({ path: info.outputPath("owner-home.png") });
 

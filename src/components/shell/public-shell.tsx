@@ -9,7 +9,7 @@ import { PublicMobileMenu } from "./public-mobile-menu";
 
 export const PUBLIC_LINKS = [
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#routes", label: "Routes" },
+  { href: "/rules", label: "Routes & rules" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/for-providers", label: "For vets & labs" },
 ];
