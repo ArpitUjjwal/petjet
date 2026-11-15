@@ -14,7 +14,9 @@ export type FileKind = { ext: "pdf" | "jpg" | "png"; mime: string; image: boolea
 
 export function uploadDir() {
   /* The ignore comment stops the build tracing the whole project from this runtime path */
-  return path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.UPLOAD_DIR ?? path.join("storage", "uploads"));
+  /* On Vercel only /tmp is writable, so uploads go there (and vanish with the instance) */
+  const fallback = process.env.VERCEL ? "/tmp/petjet-uploads" : path.join("storage", "uploads");
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.UPLOAD_DIR ?? fallback);
 }
 
 /** Identifies a file by its first bytes, whatever its name or claimed type says. */
