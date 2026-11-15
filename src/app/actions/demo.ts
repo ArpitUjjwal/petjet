@@ -41,6 +41,11 @@ export async function startDemoAction() {
   if (process.env.DEMO_MODE === "false") redirect("/login");
   const owner = await db.user.findUnique({ where: { email: DEMO_ACCOUNTS.owner.email }, select: { id: true, role: true } });
   if (!owner || !isRole(owner.role)) redirect("/login");
+  /* A fresh server (on Vercel, each new instance) starts with accounts but no journey */
+  if ((await db.pet.count({ where: { ownerId: owner.id } })) === 0) {
+    const { seedDemoJourney } = await import("../../../prisma/demo-journey");
+    await seedDemoJourney(todayISO());
+  }
   await createSession({ userId: owner.id, role: owner.role });
   redirect("/app");
 }

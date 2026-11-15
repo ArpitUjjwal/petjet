@@ -1,5 +1,5 @@
 import "server-only";
-import { readFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { Prisma, PrismaClient } from "@prisma/client";
 
@@ -16,8 +16,24 @@ const globalForPrisma = globalThis as unknown as {
   prismaSchemaTag?: string;
 };
 
+/*
+ * On Vercel the deployed files are read-only, so the database seeded during the build
+ * (prisma/demo.db, see "vercel-build" in package.json) is copied to /tmp, the only
+ * writable folder. Each server instance gets its own copy, and it resets when the
+ * instance is recycled: fine for a demo, not for real data.
+ */
+function vercelDatabaseUrl(): string | undefined {
+  if (!process.env.VERCEL) return undefined;
+  const target = "/tmp/petjet.db";
+  if (!existsSync(target)) {
+    copyFileSync(path.join(/* turbopackIgnore: true */ process.cwd(), "prisma", "demo.db"), target);
+  }
+  return `file:${target}`;
+}
+
 function createClient() {
-  const client = new PrismaClient();
+  const url = vercelDatabaseUrl();
+  const client = url ? new PrismaClient({ datasourceUrl: url }) : new PrismaClient();
   if (process.env.NODE_ENV !== "production") {
     void globalForPrisma.prisma?.$disconnect().catch(() => {});
     globalForPrisma.prisma = client;
