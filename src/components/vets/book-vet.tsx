@@ -8,7 +8,8 @@ import { Checkbox } from "@/components/ui/choice";
 import { Dialog } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
-import { slotLabel } from "@/lib/vets/core";
+import { VET_PRICES } from "@/lib/trips/costs";
+import { isVetService, slotLabel } from "@/lib/vets/core";
 
 export type ShareableDoc = { id: string; fileName: string; label: string; confirmed: boolean };
 
@@ -17,16 +18,19 @@ export function BookVet({
   slots,
   documents,
   context,
+  prefill = false,
 }: {
   provider: { id: string; name: string };
   slots: string[];
   documents: ShareableDoc[];
   context: { petId: string; petName: string; tripId: string; taskId: string; service: string; serviceLabel: string };
+  /** Demo happy path: first free time and record sharing already chosen */
+  prefill?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [slot, setSlot] = useState<string | null>(null);
+  const [slot, setSlot] = useState<string | null>(prefill ? (slots[0] ?? null) : null);
   const [shared, setShared] = useState<string[]>(documents.filter((d) => d.confirmed).map((d) => d.id));
-  const [consent, setConsent] = useState(false);
+  const [consent, setConsent] = useState(prefill);
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
@@ -55,10 +59,41 @@ export function BookVet({
     });
   }
 
+  /* Demo happy path: one tap books the first time, shares the confirmed records and the practice completes it */
+  if (prefill && slots.length) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <Button size="md" onClick={submit} loading={pending} iconLeft={<CalendarCheck className="size-3.5" />}>
+          Book {slotLabel(slots[0])}
+        </Button>
+        {isVetService(context.service) && (
+          <p className="tabular text-right text-[13px]" data-testid="vet-price">
+            <span className="font-semibold">£{VET_PRICES[context.service].petjet}</span>{" "}
+            <span className="text-ink-400 line-through">£{VET_PRICES[context.service].typical}</span>{" "}
+            <span className="text-ok-700">partner price, save £{VET_PRICES[context.service].typical - VET_PRICES[context.service].petjet}</span>
+          </p>
+        )}
+        <p className="text-right text-[12px] text-ink-500">
+          {shared.length ? `Shares ${context.petName}'s ${shared.length} confirmed record${shared.length === 1 ? "" : "s"} with the practice` : "Times are simulated for the demo"}
+        </p>
+        {(message || errors.slot || errors.consent) && (
+          <p role="alert" className="max-w-64 text-right text-[12px] text-danger-700">
+            {message ?? errors.slot ?? errors.consent}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)} disabled={!slots.length} iconLeft={<CalendarCheck className="size-3.5" />}>
-        {slots.length ? "Choose a time" : "No times left"}
+      <Button
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={!slots.length}
+        iconLeft={<CalendarCheck className="size-3.5" />}
+      >
+        {!slots.length ? "No times left" : "Choose a time"}
       </Button>
       <Dialog
         open={open}

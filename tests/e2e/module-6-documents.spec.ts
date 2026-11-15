@@ -73,7 +73,7 @@ test.describe("Module 6: documents", () => {
     await expectNoHorizontalScroll(page);
     await shot(page, info.outputPath("review.png"));
 
-    await page.getByRole("button", { name: "Confirm and update plan" }).click();
+    await page.getByRole("button", { name: "Looks right, confirm" }).click();
     await expect(page.getByTestId("document-status")).toHaveAttribute("data-status", "CONFIRMED");
     await expect(page.getByTestId("applied")).toContainText(`Milo's rabies vaccination: ${formatDate(day(-40))}`);
     await shot(page, info.outputPath("confirmed.png"));
@@ -101,14 +101,15 @@ test.describe("Module 6: documents", () => {
     await expect(page.getByTestId("document-status")).toHaveAttribute("data-status", "NEEDS_REVIEW");
     await expect(page.getByTestId("field-microchipNumber-check")).toContainText("Doesn't match Milo's microchip number on file (ending 5678)");
     await expect(page.getByTestId("field-petName-check")).toContainText('The document names "Max"');
-    const confirm = page.getByRole("button", { name: "Confirm and update plan" });
+    const confirm = page.getByRole("button", { name: "Looks right, confirm" });
     await expect(confirm).toBeDisabled();
     await shot(page, info.outputPath("mismatch.png"));
     const docUrl = page.url().replace("?uploaded=1", "");
 
-    // The dashboard asks for a look
+    // Home's journey asks for a look first
     await page.goto("/app");
-    await expect(page.getByTestId("attention-documents")).toContainText("1 document to check");
+    await expect(page.locator('[data-testid="journey-step"][data-step="documents"]')).toHaveAttribute("data-state", "current");
+    await expect(page.getByTestId("journey-current")).toContainText("Check documents");
 
     // It isn't Milo's, so it's deleted
     await page.goto(docUrl);
@@ -164,7 +165,7 @@ test.describe("Module 6: documents", () => {
     await chip.fill("956 000 012 345 678");
     await page.getByLabel(/Date implanted/).fill("2023-06-01");
     await page.getByText(/I've checked the/).click();
-    await page.getByRole("button", { name: "Confirm and update plan" }).click();
+    await page.getByRole("button", { name: "Looks right, confirm" }).click();
     await expect(page.getByTestId("document-status")).toHaveAttribute("data-status", "CONFIRMED");
     await expect(page.getByTestId("value-microchipNumber")).toContainText(CHIP);
     await expect(page.getByTestId("applied")).toContainText(`Milo's microchip: ${CHIP}, implanted 1 Jun 2023.`);

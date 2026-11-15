@@ -2,7 +2,7 @@
 
 PetJet turns international pet travel rules into a dated plan and connects owners with vets, labs and airlines. It is being built as a working prototype for a **6-minute presentation**. Everything simulated (AI reading, vet certificates, lab results, flights, payments, insurance offers) is labelled as a sample in the app.
 
-_Last updated: 15 Nov 2026_
+_Last updated: 15 Nov 2026 (simplified)_
 
 ## Status at a glance
 
@@ -18,6 +18,7 @@ _Last updated: 15 Nov 2026_
 | Batch A | Vet directory and booking, vet portal, lab portal, record sharing | ✅ Done |
 | Batch B | Flights with pet eligibility, simulated upgrade gating booking, e-ticket, insurance | ✅ Done |
 | Batch C | Notifications, demo switcher, mid-journey demo seed, README, full-journey test | ✅ Done |
+| Simplify | 4 tabs, guided 5-step journey on Home, one-tap simulated vet, recommended flights, 4-insurer comparison | ✅ Done |
 
 The original Modules 7–13 were folded into Batches A–C on 15 Nov 2026 to keep the prototype lean.
 
@@ -52,6 +53,18 @@ The original Modules 7–13 were folded into Batches A–C on 15 Nov 2026 to kee
 - [x] `npm run db:demo`: Bella the Cockapoo, GB → France in **8 days** with a return a week later (changed from ~6 weeks so the vet can issue the certificate on demo day), rabies confirmed, microchip certificate to review
 - [x] README with the reset command and a 6-minute demo script
 - [x] Full-journey browser test (`tests/e2e/demo-journey.spec.ts`): owner → vet → lab → notifications → upgrade → flights → "ready to fly" at 6 of 7 (only the return tapeworm dose, which can't be given before the trip); plus a demo-bar test; 12 new unit tests; screenshots in `docs/screenshots/batch-c/`
+
+## Simplify checklist ✅
+
+- [x] Owner menu cut from 7 pages to 4: Home, Trip plan, Documents, Bookings (new hub for vet, flights and insurance); old pages kept as routes
+- [x] Home: the trip card with a readiness bar, and a 5-step journey (documents → health certificate → flights → insurance → ready to fly) with one button for the next step (`src/lib/trips/journey.ts`); date conflicts and other blockers still show
+- [x] Demo owner only: one tap books the best-match vet and the practice accepts and completes it at once (`src/lib/demo/simulate.ts`), through the same repository code as the vet portal
+- [x] Flights: "Recommended for Bella" with **Book both flights**; the full list folded under "See all flights"
+- [x] Insurance as a full step: 4 made-up insurers with original SVG logos (`public/insurers/`), details, a comparison table and a saved sample policy (`Trip.insuranceOffer`)
+- [x] Demo seed on the Complete plan; owner demo bar is now **Restart demo**; landing page trimmed to hero, how it works and pricing, with **Try the demo**
+- [x] Trip plan: no breadcrumb, step details folded under "Details"
+- [x] Cost and savings (`src/lib/trips/costs.ts`, `src/lib/trips/cost-lines.ts`): sample partner prices for vets, partner insurance rates, flight prices against the average flight that takes the pet, and the PetJet fee; a summary on Home (total, saved against booking each part alone, saved against a relocation agency), a line-by-line breakdown on Bookings, and the saving shown at each step
+- [x] Tests: the guided demo end to end, journey and simulation unit tests, older specs updated
 
 ## Where things are
 

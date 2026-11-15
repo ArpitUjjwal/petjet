@@ -7,14 +7,11 @@ import {
   ClipboardList,
   FileText,
   FlaskConical,
+  Home,
   Inbox,
-  LayoutDashboard,
   LogOut,
   Menu,
-  PawPrint,
-  Plane,
-  ShieldCheck,
-  Stethoscope,
+  Ticket,
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -22,18 +19,16 @@ import { Drawer } from "@/components/ui/dialog";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/cn";
 
-export type NavItem = { href: string; label: string; icon: LucideIcon };
+/** `also`: other path prefixes that belong to this tab (pages reached from it) */
+export type NavItem = { href: string; label: string; icon: LucideIcon; also?: string[] };
 export type ShellRole = "owner" | "vet" | "lab";
 
 export const NAV: Record<ShellRole, NavItem[]> = {
   owner: [
-    { href: "/app", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/app/pets", label: "My pets", icon: PawPrint },
-    { href: "/app/trips", label: "My trips", icon: ClipboardList },
+    { href: "/app", label: "Home", icon: Home, also: ["/app/pets", "/app/notifications"] },
+    { href: "/app/trips", label: "Trip plan", icon: ClipboardList },
     { href: "/app/documents", label: "Documents", icon: FileText },
-    { href: "/app/vets", label: "Vets & labs", icon: Stethoscope },
-    { href: "/app/flights", label: "Flights", icon: Plane },
-    { href: "/app/insurance", label: "Insurance", icon: ShieldCheck },
+    { href: "/app/bookings", label: "Bookings", icon: Ticket, also: ["/app/vets", "/app/flights", "/app/insurance", "/app/upgrade"] },
   ],
   vet: [
     { href: "/provider", label: "Requests", icon: Inbox },
@@ -51,7 +46,10 @@ const roleLabel: Record<ShellRole, string> = {
   lab: "Pathology lab",
 };
 
-export function isActive(pathname: string, href: string, root: string) {
+const under = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
+
+export function isActive(pathname: string, href: string, root: string, also: string[] = []) {
+  if (also.some((p) => under(pathname, p))) return true;
   if (href === "/provider") return pathname === root || /^\/provider\/(appointments|lab-orders)\//.test(pathname);
   return href === root ? pathname === root : pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -68,8 +66,8 @@ function NavList({
   const root = role === "owner" ? "/app" : "/provider";
   return (
     <ul className="flex flex-col gap-0.5">
-      {NAV[role].map(({ href, label, icon: Icon }) => {
-        const active = isActive(pathname, href, root);
+      {NAV[role].map(({ href, label, icon: Icon, also }) => {
+        const active = isActive(pathname, href, root, also);
         return (
           <li key={href}>
             <Link

@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
+  ChevronDown,
   Circle,
   CalendarCheck,
   FileCheck2,
@@ -104,12 +105,7 @@ function TaskRow({
             </span>
           )}
         </div>
-        <p className="mt-1 text-sm leading-relaxed text-ink-700">{task.detail}</p>
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          {task.status === "VERIFY" && <Badge tone="warn">Needs your input</Badge>}
-          {task.officialVet && <Badge tone="brand">Official vet</Badge>}
-          {task.abroad && <Badge tone="info">Done abroad</Badge>}
-          {!task.blocking && <Badge tone="neutral">Advice</Badge>}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 empty:hidden">
           {evidence && (
             <Link
               href={`/app/documents/${evidence.id}`}
@@ -145,15 +141,6 @@ function TaskRow({
               Find a vet
             </Link>
           )}
-          {uploadType && (
-            <Link
-              href={`/app/documents/upload?pet=${pet.id}&type=${uploadType}`}
-              className="inline-flex h-6 items-center gap-1.5 rounded-full border border-line-strong px-2.5 text-xs font-medium text-ink-700 hover:border-forest-700/40 hover:bg-sage-50"
-            >
-              <FileUp className="size-3.5" />
-              {task.status === "VERIFY" ? "Upload the record" : "Upload when you have it"}
-            </Link>
-          )}
           {step && context && (
             <OwnerStepControl
               tripId={context.tripId}
@@ -165,6 +152,28 @@ function TaskRow({
               step={step}
               today={context.today}
             />
+          )}
+        </div>
+        <details className="group/more mt-1.5 text-sm [&_summary::-webkit-details-marker]:hidden" open={task.status === "VERIFY" || task.status === "BLOCKED"}>
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[13px] font-medium text-forest-800 hover:underline">
+            <ChevronDown className="size-3.5 transition-transform group-open/more:rotate-180" />
+            <span className="group-open/more:hidden">Details</span>
+            <span className="hidden group-open/more:inline">Hide details</span>
+          </summary>
+        <p className="mt-1 text-sm leading-relaxed text-ink-700">{task.detail}</p>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {task.status === "VERIFY" && <Badge tone="warn">Needs your input</Badge>}
+          {task.officialVet && <Badge tone="brand">Official vet</Badge>}
+          {task.abroad && <Badge tone="info">Done abroad</Badge>}
+          {!task.blocking && <Badge tone="neutral">Advice</Badge>}
+          {uploadType && (
+            <Link
+              href={`/app/documents/upload?pet=${pet.id}&type=${uploadType}`}
+              className="inline-flex h-6 items-center gap-1.5 rounded-full border border-line-strong px-2.5 text-xs font-medium text-ink-700 hover:border-forest-700/40 hover:bg-sage-50"
+            >
+              <FileUp className="size-3.5" />
+              {task.status === "VERIFY" ? "Upload the record" : "Upload when you have it"}
+            </Link>
           )}
           {sources.length > 0 && (
             <details className="group/src w-full text-[13px] [&_summary::-webkit-details-marker]:hidden">
@@ -201,6 +210,7 @@ function TaskRow({
             </details>
           )}
         </div>
+        </details>
       </div>
     </li>
   );

@@ -128,3 +128,76 @@ export async function upgradePlan(userId: string, plan: string): Promise<FlightR
   await db.user.update({ where: { id: userId }, data: { plan, planPaidAt: new Date() } });
   return { ok: true };
 }
+
+/* ---------- Recommended pair (the demo's one-tap booking) ---------- */
+
+type Pick1 = { flight: Flight; check: ReturnType<typeof flightEligibility> };
+
+function firstEligible(trip: TripForFlights, leg: Leg, airports?: { from: string; to: string }): Pick1 | null {
+  const t = airports ? { ...trip, departureAirport: airports.from, arrivalAirport: airports.to } : trip;
+  const pets = petsForFlights(trip);
+  for (const flight of flightsForTrip(t, leg)) {
+    const check = flightEligibility(flight, pets, trip.petPlacement);
+    if (check.ok) return { flight, check };
+  }
+  return null;
+}
+
+/**
+ * The first flight each way that every pet can take. The way home uses the airports of the
+ * way out (booked or recommended), as booking does.
+ */
+export function recommendFlights(trip: TripForFlights, booked: { leg: string; fromCode: string; toCode: string }[]) {
+  const outBooked = booked.find((b) => b.leg === "OUTBOUND");
+  const out = outBooked ? null : firstEligible(trip, "OUTBOUND");
+  const airports = outBooked ? { from: outBooked.fromCode, to: outBooked.toCode } : out ? { from: out.flight.from, to: out.flight.to } : undefined;
+  const home = trip.returnDate && !booked.some((b) => b.leg === "RETURN") ? firstEligible(trip, "RETURN", airports) : null;
+  return { out, home };
+}
+
+/** Books the recommended flight for each leg not booked yet. Stops at the first failure. */
+export async function bookRecommended(ownerId: string, tripId: string): Promise<FlightResult<{ booked: number }>> {
+  let count = 0;
+  for (const leg of ["OUTBOUND", "RETURN"] as const) {
+    const trip = await getTrip(ownerId, tripId);
+    if (!trip) return { ok: false, message: "We couldn't find that trip." };
+    const bookings = await db.booking.findMany({ where: { tripId: trip.id }, select: { leg: true, fromCode: true, toCode: true } });
+    const rec = recommendFlights(trip, bookings);
+    const pick = leg === "OUTBOUND" ? rec.out : rec.home;
+    if (!pick) continue;
+    const r = await bookFlight(ownerId, { tripId: trip.id, leg, flightId: pick.flight.id });
+    if (!r.ok) return r;
+    count++;
+  }
+  return count ? { ok: true, booked: count } : { ok: false, message: "There's nothing left to book for this trip." };
+}
+
+/** Average price, pet fees included, of the flights on a leg that every pet can take. */
+function averageEligible(trip: TripForFlights, leg: Leg, airports?: { from: string; to: string }) {
+  const t = airports ? { ...trip, departureAirport: airports.from, arrivalAirport: airports.to } : trip;
+  const pets = petsForFlights(trip);
+  const prices = flightsForTrip(t, leg)
+    .map((f) => flightEligibility(f, pets, trip.petPlacement))
+    .filter((c) => c.ok)
+    .map((c) => c.price);
+  return prices.length ? Math.round(prices.reduce((n, p) => n + p, 0) / prices.length) : null;
+}
+
+/**
+ * Each leg's price, booked or recommended, against the average flight that would also take the pets.
+ * For the cost summary.
+ */
+export function legPrices(trip: TripForFlights, booked: { leg: string; fromCode: string; toCode: string; priceGbp: number; airline: string; flightNumber: string }[]) {
+  const rec = recommendFlights(trip, booked);
+  const out = booked.find((b) => b.leg === "OUTBOUND");
+  const airports = out ? { from: out.fromCode, to: out.toCode } : rec.out ? { from: rec.out.flight.from, to: rec.out.flight.to } : undefined;
+  const legs: Leg[] = trip.returnDate ? ["OUTBOUND", "RETURN"] : ["OUTBOUND"];
+  return legs.flatMap((leg) => {
+    const b = booked.find((x) => x.leg === leg);
+    const pick = leg === "OUTBOUND" ? rec.out : rec.home;
+    const average = averageEligible(trip, leg, leg === "RETURN" ? airports : out ? airports : undefined);
+    if (b) return [{ leg, amount: b.priceGbp, average: average ?? b.priceGbp, booked: true, flight: `${AIRLINES[b.airline as keyof typeof AIRLINES]?.name ?? b.airline} ${b.flightNumber}` }];
+    if (pick) return [{ leg, amount: pick.check.price, average: average ?? pick.check.price, booked: false, flight: `${AIRLINES[pick.flight.airline].name} ${pick.flight.flightNumber}` }];
+    return [];
+  });
+}

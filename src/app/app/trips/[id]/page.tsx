@@ -72,18 +72,12 @@ export default async function TripPage({ params, searchParams }: PageProps<"/app
     <TripEditorProvider trip={trip} rules={rules} today={today}>
       <div className="flex flex-col gap-8">
         {isNew && <ClearPlanDraft />}
-        <nav aria-label="Breadcrumb" className="text-sm text-ink-500">
-          <Link href="/app/trips" className="hover:text-forest-800 hover:underline">
-            My trips
-          </Link>{" "}
-          / <span className="text-ink-900">{routeTitle(trip)}</span>
-        </nav>
 
         <header className="relative overflow-hidden rounded-card bg-forest-800 p-6 text-cream-50 shadow-raised sm:p-8">
           <Plane aria-hidden className="absolute -bottom-8 -right-6 size-44 rotate-12 text-forest-700" strokeWidth={1} />
           <div className="relative flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="eyebrow text-sage-300">Provisional plan</p>
+              <p className="eyebrow text-sage-300">Trip plan</p>
               <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">{routeTitle(trip)}</h1>
               <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-sage-200">
                 <span className="inline-flex items-center gap-1.5">

@@ -31,27 +31,29 @@ Password for all: `PetJet-demo-2026` (the login pages have one-click demo button
 | Vet (Riverside Veterinary Centre) | vet@petjet.test | `/provider/login` |
 | Lab (Northgate Pathology) | lab@petjet.test | `/provider/login` |
 
-Signed in as any demo account, the dark **demo bar** at the top switches to the owner, vet or lab in one click. Real accounts never see it, and it's hidden when `DEMO_MODE=false`.
+Signed in as the demo owner, the dark **demo bar** at the top has **Restart demo**, which puts the guided journey back to step 1. The vet and lab portals still work at `/provider/login` (their demo bar switches back to the owner). Real accounts never see the bar, and it's hidden when `DEMO_MODE=false`. On the landing page, **Try the demo** signs in as the demo owner in one click.
 
 Sample PDFs to upload are on the Documents page and in `public/samples/` (regenerate with `npm run samples`).
 
-## 6-minute demo
+## The app at a glance
 
-Run `npm run db:demo` just before each run-through. It resets the demo owner to a week before the trip, with dates relative to today: **Bella**, a 9 kg Cockapoo, flies Great Britain to France in 8 days and comes home a week later. Her rabies certificate is confirmed, a microchip certificate is waiting for review, and the account is on the Travel Plan.
+Four tabs: **Home** (the trip and a 5-step journey with one button for the next step), **Trip plan** (the checklist, details folded away), **Documents**, and **Bookings** (vet, flights and insurance). Pets, notifications and plans are one tap away from these.
+
+## 4-minute demo
+
+Run `npm run db:demo` (or press **Restart demo**) before each run-through. **Bella**, a 9 kg Cockapoo, flies Great Britain to France in 8 days and comes home a week later. Her rabies certificate is confirmed, a microchip certificate is waiting to be checked, and the account is on the Complete plan.
 
 | Time | Where | Show |
 |---|---|---|
-| 0:00 | `/` | The problem: government pages list rules, PetJet turns them into a dated plan. |
-| 0:40 | Log in as the pet owner, dashboard | 8 days to go, readiness 3 of 7, the health certificate next, "1 document to check". |
-| 1:20 | Documents → microchip certificate | Details read from the PDF with the line they came from. Confirm. |
-| 2:00 | Trip → Animal health certificate → Find a vet | Official vets only. Choose a time, share the records (consent), request. |
-| 2:40 | Demo bar → **Switch to vet** | The request and its notification. Open the shared record, Accept, Issue demo certificate, Order a titre test. |
-| 3:30 | Demo bar → **Switch to lab** | The order. Enter 0.8 IU/mL, Post result. |
-| 4:00 | Demo bar → **Switch to pet owner** | The bell: confirmed, certificate issued, test ordered, result. Mark all read. The certificate step is done. |
-| 4:30 | Flights | Bella is over the 8 kg cabin limit, so the hold. Upgrade (simulated £39), book Air France out, then the cargo flight home (it ticks off the approved route). E-ticket. |
-| 5:30 | Dashboard | **Ready to fly**: 6 of 7, with only the tapeworm dose before coming home left (it can't be given until 1–5 days before re-entering Great Britain). Insurance if there's time. |
+| 0:00 | `/` | The problem, then **Try the demo**. |
+| 0:30 | Home | 8 days to go, readiness 3 of 7, the journey at step 1, and **Cost and savings**: the estimated total, what it saves against booking each part alone, and against a relocation agency. |
+| 0:50 | 1. Check documents | Details read from the PDF, each with the line it came from. **Looks right, confirm**. |
+| 1:30 | 2. Health certificate | Best-match official vet, first time and record sharing already chosen. One tap: the practice accepts and the appointment completes by itself (simulated); the bell lights up. |
+| 2:10 | 3. Book flights | Bella is over the 8 kg cabin limit, so the hold out and cargo home (the approved route). **Book both flights**. |
+| 2:40 | 4. Insure Bella | Four sample insurers with logos; the recommended one is preselected. **Compare all details**, then **Choose this cover**. |
+| 3:30 | 5. Ready to fly | Boarding passes and the policy on Home; only the tapeworm dose before coming home is left, shown as "while you're away". **See the breakdown**: every line booked, with the saving on each. |
 
-Everything simulated (document reading, the certificate, the lab result, flights, payment, insurance) is labelled as a sample in the app.
+Everything simulated (document reading, the vet's reply and certificate, flights, payment, insurance, and the partner prices and agency quotes behind the savings) is labelled as a sample in the app. The cost figures live in `src/lib/trips/costs.ts`.
 
 ## Tests
 

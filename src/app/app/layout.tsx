@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { AppShell } from "@/components/shell/app-shell";
-import { demoSwitchTargets } from "@/lib/auth/demo";
+import { DEMO_ACCOUNTS } from "../../../prisma/demo-accounts";
 import { requireOwner } from "@/lib/auth/session";
 import { unreadCount } from "@/lib/notifications/repository";
-import { DemoSwitcher } from "@/components/shell/demo-switcher";
+import { DemoBar } from "@/components/shell/demo-switcher";
 
 export const metadata: Metadata = { robots: { index: false } };
 
@@ -17,7 +17,7 @@ export default async function OwnerLayout({ children }: LayoutProps<"/app">) {
       userName={user.name}
       logoutSlot={<LogoutButton />}
       unread={unread}
-      demoSlot={<DemoSwitcher targets={demoSwitchTargets(user.email)} />}
+      demoSlot={<DemoBar show={process.env.DEMO_MODE !== "false" && user.email.toLowerCase() === DEMO_ACCOUNTS.owner.email} />}
     >
       {children}
     </AppShell>

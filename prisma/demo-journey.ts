@@ -5,7 +5,8 @@
  *   - Bella, a Cockapoo of about 9 kg (too heavy for the cabin, so the hold story shows)
  *   - Great Britain to France in 8 days, home a week later
  *   - a rabies certificate uploaded and confirmed; a microchip certificate waiting for review
- *   - the Travel Plan, so the upgrade to Complete (and flight booking) can be shown
+ *   - the Complete plan, so flights can be booked without an upgrade step
+ *   - no insurance chosen yet
  *   - no appointments, lab orders, bookings or notifications
  *
  * Only the demo owner's data, and the demo vet's and lab's notifications, are touched.
@@ -43,7 +44,7 @@ export async function resetDemoOwner() {
     db.pet.deleteMany({ where: { ownerId: owner.id } }),
     db.document.deleteMany({ where: { ownerId: owner.id } }),
     db.notification.deleteMany({ where: { userId: { in: [owner.id, ...providers.map((p) => p.id)] } } }),
-    db.user.update({ where: { id: owner.id }, data: { plan: "PLAN", planPaidAt: new Date() } }),
+    db.user.update({ where: { id: owner.id }, data: { plan: "COMPLETE", planPaidAt: new Date() } }),
   ]);
   for (const d of docs) await removeUpload(d.storedName);
   return owner.id;

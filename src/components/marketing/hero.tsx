@@ -1,7 +1,8 @@
 import { ArrowRight, BadgeCheck, CalendarClock, Plane, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { startDemoAction } from "@/app/actions/demo";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { Float, Reveal } from "./reveal";
 
@@ -90,7 +91,7 @@ function HeroVisual() {
   );
 }
 
-export function Hero({ primaryHref }: { primaryHref: string }) {
+export function Hero({ primaryHref, demo = false }: { primaryHref: string; demo?: boolean }) {
   return (
     <section className="relative overflow-hidden">
       <div
@@ -104,16 +105,24 @@ export function Hero({ primaryHref }: { primaryHref: string }) {
           </Badge>
           <h1 className="display-xl mt-6 text-forest-900">Pet travel, simplified.</h1>
           <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-500 sm:text-lg">
-            PetJet turns official pet travel rules into one dated plan for your pet, then helps you
-            get it done: records checked, vets and labs booked, pet-friendly flights found.
+            One clear plan for your pet&apos;s trip. We check the records, book the vet, find
+            pet-friendly flights and compare cover.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <ButtonLink href={primaryHref} size="lg" iconRight={<ArrowRight className="size-4" />}>
               Plan my trip
             </ButtonLink>
-            <ButtonLink href="/#how-it-works" size="lg" variant="secondary">
-              How it works
-            </ButtonLink>
+            {demo ? (
+              <form action={startDemoAction}>
+                <Button type="submit" size="lg" variant="secondary">
+                  Try the demo
+                </Button>
+              </form>
+            ) : (
+              <ButtonLink href="/#how-it-works" size="lg" variant="secondary">
+                How it works
+              </ButtonLink>
+            )}
           </div>
           <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-[13px] text-ink-500">
             <li className="flex items-center gap-2">

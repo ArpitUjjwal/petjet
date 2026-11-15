@@ -1,6 +1,5 @@
-import { FeatureBento } from "@/components/marketing/feature-bento";
 import { Hero } from "@/components/marketing/hero";
-import { CtaBand, Faq, HowItWorks, Pricing, RouteCards } from "@/components/marketing/sections";
+import { CtaBand, HowItWorks, Pricing } from "@/components/marketing/sections";
 import { PublicShell } from "@/components/shell/public-shell";
 import { getCurrentUser } from "@/lib/auth/session";
 import { homeFor } from "@/lib/auth/roles";
@@ -12,12 +11,9 @@ export default async function Home() {
 
   return (
     <PublicShell>
-      <Hero primaryHref={primaryHref} />
-      <FeatureBento />
+      <Hero primaryHref={primaryHref} demo={process.env.DEMO_MODE !== "false" && (!user || user.role === "OWNER")} />
       <HowItWorks />
-      <RouteCards />
       <Pricing primaryHref={primaryHref} />
-      <Faq />
       <CtaBand
         title="Your pet's next trip starts with a plan."
         body="Tell us about your pet and where you're going. It takes about three minutes."

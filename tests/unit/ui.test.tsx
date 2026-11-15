@@ -261,6 +261,11 @@ describe("AppShell", () => {
     expect(isActive("/app/documents", "/app", "/app")).toBe(false);
     expect(isActive("/app/documents/12", "/app/documents", "/app")).toBe(true);
     expect(isActive("/app/documents-old", "/app/documents", "/app")).toBe(false);
+    /* Pages reached from a tab keep it highlighted */
+    const bookings = NAV.owner.find((n) => n.label === "Bookings")!;
+    expect(isActive("/app/flights/abc", bookings.href, "/app", bookings.also)).toBe(true);
+    expect(isActive("/app/insurance", bookings.href, "/app", bookings.also)).toBe(true);
+    expect(isActive("/app/documents", bookings.href, "/app", bookings.also)).toBe(false);
   });
 
   it("renders the owner nav with the current page marked and an unread count", () => {
@@ -275,7 +280,8 @@ describe("AppShell", () => {
       "aria-current",
       "page",
     );
-    expect(within(nav).getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+    expect(within(nav).getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
+    expect(NAV.owner.map((n) => n.label)).toEqual(["Home", "Trip plan", "Documents", "Bookings"]);
     expect(screen.getByRole("link", { name: "Notifications, 3 unread" })).toBeInTheDocument();
     expect(screen.getByText("content")).toBeInTheDocument();
   });
